@@ -1,6 +1,6 @@
 # Spec Phase 0: Room 701 (Nachtwache) ins neue Backend
 
-Stand 2026-09-23. Ziel-Repo: `FlakDemaj/SLAIS_Backend_Mono`, Branch `slais-room701-Add-NightShift-Simulation`, Basis `origin/slais-4-Add-UserController-With-Logic` (Flaks aktiver Stand; enthält User-Feature und Test-Infrastruktur). Konzept: `docs/KONZEPT-room701-fallvorlagen.md`. Dieser Text ist die Arbeitsanweisung für Codex; die Kopie im Backend-Branch liegt unter `docs/night-shift/SPEC-phase0.md`, der Fortschritt unter `docs/night-shift/PROGRESS-phase0.md`.
+Stand 2026-09-23. Ziel-Repo: `FlakDemaj/SLAIS_Backend_Mono`, Branch `room701/night-shift-phase0` (urspruenglich `slais-room701-…`; Namen mit `slais-` sind bei Flak geschuetzt, nur per PR aenderbar), Basis `origin/slais-4-Add-UserController-With-Logic` (Flaks aktiver Stand; enthält User-Feature und Test-Infrastruktur). Konzept: `docs/KONZEPT-room701-fallvorlagen.md`. Dieser Text ist die Arbeitsanweisung für Codex; die Kopie im Backend-Branch liegt unter `docs/night-shift/SPEC-phase0.md`, der Fortschritt unter `docs/night-shift/PROGRESS-phase0.md`.
 
 ## Ziel
 
