@@ -15,13 +15,19 @@ using Domain.Simulations.NightShift;
 
 namespace Application.Simulations.NightShift.Commands.FinishNightShiftSession;
 
-public class FinishNightShiftSessionCommandHandler : BaseHandler<FinishNightShiftSessionCommand>, IRequestHandler<FinishNightShiftSessionCommand, NightShiftFeedbackResponseDto>
+public class FinishNightShiftSessionCommandHandler : BaseHandler<FinishNightShiftSessionCommand>,
+    IRequestHandler<FinishNightShiftSessionCommand, NightShiftFeedbackResponseDto>
 {
     private readonly INightShiftSessionRepository _nightShiftSessionRepository;
     private readonly ILlmClient _llmClient;
     private readonly INightShiftPromptBuilder _promptBuilder;
 
-    public FinishNightShiftSessionCommandHandler(INightShiftSessionRepository nightShiftSessionRepository, ILlmClient llmClient, INightShiftPromptBuilder promptBuilder, IMapper mapper, ISlaisLogger<FinishNightShiftSessionCommand> logger)
+    public FinishNightShiftSessionCommandHandler(
+        INightShiftSessionRepository nightShiftSessionRepository,
+        ILlmClient llmClient,
+        INightShiftPromptBuilder promptBuilder,
+        IMapper mapper,
+        ISlaisLogger<FinishNightShiftSessionCommand> logger)
         : base(mapper, logger)
     {
         _nightShiftSessionRepository = nightShiftSessionRepository;
@@ -29,10 +35,14 @@ public class FinishNightShiftSessionCommandHandler : BaseHandler<FinishNightShif
         _promptBuilder = promptBuilder;
     }
 
-    public async Task<NightShiftFeedbackResponseDto> HandleAsync(FinishNightShiftSessionCommand request, IAuthentication? authentication = null, CancellationToken cancellationToken = default)
+    public async Task<NightShiftFeedbackResponseDto> HandleAsync(
+        FinishNightShiftSessionCommand request,
+        IAuthentication? authentication = null,
+        CancellationToken cancellationToken = default)
     {
         EnsureAllowed(authentication!);
-        var session = await _nightShiftSessionRepository.GetByGuidAsync(request.SessionGuid) ?? throw new SlaisException(NightShiftErrorCodes.SessionNotFound);
+        var session = await _nightShiftSessionRepository.GetByGuidAsync(request.SessionGuid)
+            ?? throw new SlaisException(NightShiftErrorCodes.SessionNotFound);
         if (session.UserGuid != authentication!.UserGuid)
         {
             throw new SlaisException(NightShiftErrorCodes.Forbidden);
@@ -46,18 +56,54 @@ public class FinishNightShiftSessionCommandHandler : BaseHandler<FinishNightShif
         NightShiftFeedbackEntity feedback;
         if (!session.Messages.Any(message => message.Role == NightShiftMessageRole.Student || message.Role == NightShiftMessageRole.Action))
         {
-            feedback = NightShiftFeedbackEntity.NotOk(session.Guid, NightShiftLanguage.NoStudentTurnYet(session.Language), session.Model, _promptBuilder.Version);
+            feedback = NightShiftFeedbackEntity.NotOk(
+                session.Guid,
+                NightShiftLanguage.NoStudentTurnYet(session.Language),
+                session.Model,
+                _promptBuilder.Version);
         }
         else
         {
             var patientCase = ToPatientCase(session);
-            var messages = new List<LlmChatMessage> { new("system", _promptBuilder.BuildFeedbackPrompt(patientCase, session.Language)) };
-            messages.AddRange(session.Messages.Where(message => message.Role != NightShiftMessageRole.System).Select(message => new LlmChatMessage(message.Role == NightShiftMessageRole.Patient ? "assistant" : "user", message.Content)));
-            var raw = await _llmClient.ChatAsync(messages, 0.3, 900, true, session.Guid.ToString(), cancellationToken);
+            var messages = new List<LlmChatMessage>
+            {
+                new("system", _promptBuilder.BuildFeedbackPrompt(patientCase, session.Language))
+            };
+            messages.AddRange(session.Messages
+                .Where(message => message.Role != NightShiftMessageRole.System)
+                .Select(message => new LlmChatMessage(
+                    message.Role == NightShiftMessageRole.Patient ? "assistant" : "user",
+                    message.Content)));
+            var raw = await _llmClient.ChatAsync(
+                messages,
+                0.3,
+                900,
+                true,
+                session.Guid.ToString(),
+                cancellationToken);
             var parsed = NightShiftPromptTools.ParseFeedback(raw, session.Language);
             feedback = parsed.Ok
-                ? NightShiftFeedbackEntity.Create(session.Guid, true, parsed.ScoreProfessional, parsed.ScoreRapport, parsed.ScoreEmpathy, parsed.ScoreListening, parsed.ScoreClarity, parsed.TextProfessional, parsed.TextRapport, parsed.TextEmpathy, parsed.TextListening, parsed.TextClarity, parsed.Summary, session.Model, _promptBuilder.Version)
-                : NightShiftFeedbackEntity.NotOk(session.Guid, parsed.Summary, session.Model, _promptBuilder.Version);
+                ? NightShiftFeedbackEntity.Create(
+                    session.Guid,
+                    true,
+                    parsed.ScoreProfessional,
+                    parsed.ScoreRapport,
+                    parsed.ScoreEmpathy,
+                    parsed.ScoreListening,
+                    parsed.ScoreClarity,
+                    parsed.TextProfessional,
+                    parsed.TextRapport,
+                    parsed.TextEmpathy,
+                    parsed.TextListening,
+                    parsed.TextClarity,
+                    parsed.Summary,
+                    session.Model,
+                    _promptBuilder.Version)
+                : NightShiftFeedbackEntity.NotOk(
+                    session.Guid,
+                    parsed.Summary,
+                    session.Model,
+                    _promptBuilder.Version);
         }
 
         await _nightShiftSessionRepository.AddFeedbackAsync(feedback);
@@ -68,12 +114,42 @@ public class FinishNightShiftSessionCommandHandler : BaseHandler<FinishNightShif
     private NightShiftFeedbackResponseDto ToResponse(NightShiftFeedbackEntity feedback, Language language)
     {
         var mapped = _mapper.Map<NightShiftFeedbackResponseDto>(feedback);
-        return new NightShiftFeedbackResponseDto { Feedback = mapped.Summary, Ok = mapped.Ok, Scores = mapped.Scores, Labels = NightShiftLanguage.Labels(language), PerDimension = mapped.PerDimension, Summary = mapped.Summary };
+        return new NightShiftFeedbackResponseDto
+        {
+            Feedback = mapped.Summary,
+            Ok = mapped.Ok,
+            Scores = mapped.Scores,
+            Labels = NightShiftLanguage.Labels(language),
+            PerDimension = mapped.PerDimension,
+            Summary = mapped.Summary
+        };
     }
 
     private static PatientCase ToPatientCase(NightShiftSessionEntity session)
     {
-        return new PatientCase { Key = session.CaseKey, Name = session.CaseName, Situation = session.CaseSituation, Emotion = session.CaseEmotion, LearningGoal = session.CaseLearningGoal, TensionStart = session.CaseTensionStart, Opener = session.CaseOpener, Record = new PatientRecord { Born = session.RecordBorn, Gender = session.RecordGender, Admission = session.RecordAdmission, Diagnoses = session.RecordDiagnoses, Allergies = session.RecordAllergies, Medication = session.RecordMedication, CareLevel = session.RecordCareLevel, Risks = session.RecordRisks, Resuscitation = session.RecordResuscitation, Relatives = session.RecordRelatives } };
+        return new PatientCase
+        {
+            Key = session.CaseKey,
+            Name = session.CaseName,
+            Situation = session.CaseSituation,
+            Emotion = session.CaseEmotion,
+            LearningGoal = session.CaseLearningGoal,
+            TensionStart = session.CaseTensionStart,
+            Opener = session.CaseOpener,
+            Record = new PatientRecord
+            {
+                Born = session.RecordBorn,
+                Gender = session.RecordGender,
+                Admission = session.RecordAdmission,
+                Diagnoses = session.RecordDiagnoses,
+                Allergies = session.RecordAllergies,
+                Medication = session.RecordMedication,
+                CareLevel = session.RecordCareLevel,
+                Risks = session.RecordRisks,
+                Resuscitation = session.RecordResuscitation,
+                Relatives = session.RecordRelatives
+            }
+        };
     }
 
     private static void EnsureAllowed(IAuthentication authentication)

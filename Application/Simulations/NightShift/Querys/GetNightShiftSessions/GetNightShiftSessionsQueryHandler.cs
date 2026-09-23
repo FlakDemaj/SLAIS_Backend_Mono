@@ -12,17 +12,24 @@ using Domain.Common.Exceptions;
 
 namespace Application.Simulations.NightShift.Querys.GetNightShiftSessions;
 
-public class GetNightShiftSessionsQueryHandler : BaseHandler<GetNightShiftSessionsQuery>, IRequestHandler<GetNightShiftSessionsQuery, List<NightShiftSessionSummaryResponseDto>>
+public class GetNightShiftSessionsQueryHandler : BaseHandler<GetNightShiftSessionsQuery>,
+    IRequestHandler<GetNightShiftSessionsQuery, List<NightShiftSessionSummaryResponseDto>>
 {
     private readonly INightShiftSessionRepository _nightShiftSessionRepository;
 
-    public GetNightShiftSessionsQueryHandler(INightShiftSessionRepository nightShiftSessionRepository, IMapper mapper, ISlaisLogger<GetNightShiftSessionsQuery> logger)
+    public GetNightShiftSessionsQueryHandler(
+        INightShiftSessionRepository nightShiftSessionRepository,
+        IMapper mapper,
+        ISlaisLogger<GetNightShiftSessionsQuery> logger)
         : base(mapper, logger)
     {
         _nightShiftSessionRepository = nightShiftSessionRepository;
     }
 
-    public async Task<List<NightShiftSessionSummaryResponseDto>> HandleAsync(GetNightShiftSessionsQuery request, IAuthentication? authentication = null, CancellationToken cancellationToken = default)
+    public async Task<List<NightShiftSessionSummaryResponseDto>> HandleAsync(
+        GetNightShiftSessionsQuery request,
+        IAuthentication? authentication = null,
+        CancellationToken cancellationToken = default)
     {
         if (authentication!.UserRole == Roles.Server)
         {
