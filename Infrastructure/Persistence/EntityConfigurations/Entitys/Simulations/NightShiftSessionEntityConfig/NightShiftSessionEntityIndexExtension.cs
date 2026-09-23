@@ -13,5 +13,9 @@ internal static class NightShiftSessionEntityIndexExtension
             .IsDescending(false, true)
             .HasDatabaseName("idx_night_shift_sessions_fk_user_guid_started_at");
         builder.HasIndex(session => session.CreatedByUserGuid).HasDatabaseName("idx_night_shift_sessions_created_by");
+
+        builder
+            .HasIndex(session => session.TemplateGuid)
+            .HasDatabaseName("idx_night_shift_sessions_fk_night_shift_template_guid");
     }
 }

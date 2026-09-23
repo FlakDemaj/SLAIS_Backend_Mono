@@ -19,11 +19,13 @@ public class StartNightShiftSessionCommandHandler : BaseHandler<StartNightShiftS
     IRequestHandler<StartNightShiftSessionCommand, StartNightShiftSessionResponseDto>
 {
     private readonly INightShiftSessionRepository _nightShiftSessionRepository;
+    private readonly INightShiftTemplateRepository _nightShiftTemplateRepository;
     private readonly ILlmClient _llmClient;
     private readonly INightShiftPromptBuilder _promptBuilder;
 
     public StartNightShiftSessionCommandHandler(
         INightShiftSessionRepository nightShiftSessionRepository,
+        INightShiftTemplateRepository nightShiftTemplateRepository,
         ILlmClient llmClient,
         INightShiftPromptBuilder promptBuilder,
         IMapper mapper,
@@ -31,6 +33,7 @@ public class StartNightShiftSessionCommandHandler : BaseHandler<StartNightShiftS
         : base(mapper, logger)
     {
         _nightShiftSessionRepository = nightShiftSessionRepository;
+        _nightShiftTemplateRepository = nightShiftTemplateRepository;
         _llmClient = llmClient;
         _promptBuilder = promptBuilder;
     }
@@ -42,7 +45,8 @@ public class StartNightShiftSessionCommandHandler : BaseHandler<StartNightShiftS
     {
         EnsureAllowed(authentication!);
         var language = NightShiftLanguage.Parse(request.Language);
-        var patientCase = await ResolveCaseAsync(request.CaseKey, language, cancellationToken);
+        var resolution = await ResolveCaseAsync(request.CaseKey, language, cancellationToken);
+        var patientCase = resolution.Case;
         var session = NightShiftSessionEntity.Create(
             authentication!.UserGuid,
             language,
@@ -64,7 +68,8 @@ public class StartNightShiftSessionCommandHandler : BaseHandler<StartNightShiftS
             patientCase.Record.Resuscitation,
             patientCase.Record.Relatives,
             _promptBuilder.Version,
-            _llmClient.Model);
+            _llmClient.Model,
+            resolution.TemplateGuid);
         await _nightShiftSessionRepository.CreateAsync(session);
         await _nightShiftSessionRepository.AddMessageAsync(
             NightShiftMessageEntity.Create(
@@ -90,7 +95,8 @@ public class StartNightShiftSessionCommandHandler : BaseHandler<StartNightShiftS
                 Key = patientCase.Key,
                 Name = patientCase.Name,
                 Situation = patientCase.Situation,
-                Lernziel = patientCase.LearningGoal
+                Lernziel = patientCase.LearningGoal,
+                LanguageFallback = resolution.IsLanguageFallback
             },
             Stammblatt = new NightShiftStammblattDto
             {
@@ -108,19 +114,20 @@ public class StartNightShiftSessionCommandHandler : BaseHandler<StartNightShiftS
         };
     }
 
-    private async Task<PatientCase> ResolveCaseAsync(
+    private async Task<CaseResolution> ResolveCaseAsync(
         string? key,
         Language language,
         CancellationToken cancellationToken)
     {
-        var caseKey = key?.Trim();
+        var caseKey = key?.Trim().ToLowerInvariant();
         if (string.IsNullOrEmpty(caseKey))
         {
-            var cases = CuratedCases.For(language);
-            return cases[Random.Shared.Next(cases.Count)];
+            var templates = await _nightShiftTemplateRepository.GetActiveAsync();
+            var template = GetRandomTemplate(templates);
+            return FromTemplate(template, language);
         }
 
-        if (caseKey.Equals(CuratedCases.RandomKey, StringComparison.OrdinalIgnoreCase))
+        if (caseKey.Equals("random", StringComparison.OrdinalIgnoreCase))
         {
             try
             {
@@ -134,15 +141,82 @@ public class StartNightShiftSessionCommandHandler : BaseHandler<StartNightShiftS
                     true,
                     "generate",
                     cancellationToken);
-                return CaseSanitizer.FromJson(raw, language);
+                var sanitized = CaseSanitizer.FromJson(raw, language, CreateSanitizerFallback(language));
+                if (!sanitized.UsedFallback)
+                {
+                    return new CaseResolution(sanitized.Case, null, false);
+                }
+
+                var templates = await _nightShiftTemplateRepository.GetActiveAsync();
+                var fallbackTemplate = GetRandomTemplate(templates);
+                return FromTemplate(fallbackTemplate, language);
             }
             catch (SlaisException exception) when (exception.ErrorCode == (int)NightShiftErrorCodes.LlmUnavailable)
             {
-                return CuratedCases.Fallback(language);
+                var templates = await _nightShiftTemplateRepository.GetActiveAsync();
+                var fallbackTemplate = GetRandomTemplate(templates);
+                return FromTemplate(fallbackTemplate, language);
             }
         }
 
-        return CuratedCases.Find(caseKey, language) ?? throw new SlaisException(NightShiftErrorCodes.InvalidCase);
+        var activeTemplate = await _nightShiftTemplateRepository.GetActiveByKeyAsync(caseKey);
+        if (activeTemplate == null)
+        {
+            throw new SlaisException(NightShiftErrorCodes.InvalidCase);
+        }
+
+        return FromTemplate(activeTemplate, language);
+    }
+
+    private static NightShiftTemplateEntity GetRandomTemplate(List<NightShiftTemplateEntity> templates)
+    {
+        if (templates.Count == 0)
+        {
+            throw new SlaisException(NightShiftErrorCodes.NoActiveTemplates);
+        }
+
+        return templates[Random.Shared.Next(templates.Count)];
+    }
+
+    private static CaseResolution FromTemplate(
+        NightShiftTemplateEntity template,
+        Language language)
+    {
+        var resolution = PatientCaseFactory.FromTemplate(template, language);
+        return new CaseResolution(
+            resolution.Case,
+            template.Guid,
+            resolution.IsLanguageFallback);
+    }
+
+    private static PatientCase CreateSanitizerFallback(Language language)
+    {
+        var unavailable = language == Language.English ? "n/a" : "k.A.";
+        return new PatientCase
+        {
+            Key = "random",
+            Name = "Patient",
+            Situation = string.Empty,
+            Emotion = "angespannt",
+            LearningGoal = language == Language.English
+                ? "Practise de-escalation and empathy."
+                : "Deeskalation und Empathie ueben.",
+            TensionStart = 6,
+            Opener = string.Empty,
+            Record = new PatientRecord
+            {
+                Born = unavailable,
+                Gender = unavailable,
+                Admission = unavailable,
+                Diagnoses = unavailable,
+                Allergies = unavailable,
+                Medication = unavailable,
+                CareLevel = unavailable,
+                Risks = unavailable,
+                Resuscitation = unavailable,
+                Relatives = unavailable
+            }
+        };
     }
 
     private static void EnsureAllowed(IAuthentication authentication)
@@ -150,6 +224,25 @@ public class StartNightShiftSessionCommandHandler : BaseHandler<StartNightShiftS
         if (authentication.UserRole == Roles.Server)
         {
             throw new SlaisException(NightShiftErrorCodes.Forbidden);
+        }
+    }
+
+    private sealed class CaseResolution
+    {
+        public PatientCase Case { get; }
+
+        public Guid? TemplateGuid { get; }
+
+        public bool IsLanguageFallback { get; }
+
+        public CaseResolution(
+            PatientCase patientCase,
+            Guid? templateGuid,
+            bool isLanguageFallback)
+        {
+            Case = patientCase;
+            TemplateGuid = templateGuid;
+            IsLanguageFallback = isLanguageFallback;
         }
     }
 }

@@ -4,6 +4,8 @@ public class NightShiftSessionSummaryResponseDto
 {
     public Guid SessionId { get; init; }
 
+    public Guid? TemplateId { get; init; }
+
     public required string CaseKey { get; init; }
 
     public required string CaseName { get; init; }

@@ -1,0 +1,49 @@
+insert into simulation.night_shift_templates
+    (night_shift_template_guid, key, state, tension_start, sort_order, created_by_user_guid)
+values
+    ('11111111-1111-4111-8111-000000000001', 'keller', 0, 8, 10, null),
+    ('11111111-1111-4111-8111-000000000002', 'schmidt', 0, 6, 20, null),
+    ('11111111-1111-4111-8111-000000000003', 'yilmaz', 0, 9, 30, null),
+    ('11111111-1111-4111-8111-000000000004', 'entzug', 0, 9, 40, null),
+    ('11111111-1111-4111-8111-000000000005', 'vogel', 0, 8, 50, null)
+on conflict do nothing;
+
+insert into simulation.night_shift_template_texts
+    (night_shift_template_text_guid, fk_night_shift_template_guid, language, name, situation, emotion, learning_goal, opener, born, gender, admission, diagnoses, allergies, medication, care_level, risks, resuscitation, relatives)
+select
+    values_list.night_shift_template_text_guid::uuid,
+    template.night_shift_template_guid,
+    values_list.language::smallint,
+    values_list.name,
+    values_list.situation,
+    values_list.emotion,
+    values_list.learning_goal,
+    values_list.opener,
+    values_list.born,
+    values_list.gender,
+    values_list.admission,
+    values_list.diagnoses,
+    values_list.allergies,
+    values_list.medication,
+    values_list.care_level,
+    values_list.risks,
+    values_list.resuscitation,
+    values_list.relatives
+from
+(
+values
+    ('22222222-2222-4222-8222-000000000001', 'keller', 0, 'Herr Keller, 58', 'Akute Schmerzkrise nach OP, fuehlt sich nicht ernst genommen, kurz vorm Ausrasten.', 'wuetend, verzweifelt, misstrauisch', 'Deeskalation und Schmerz ernst nehmen ohne falsche Versprechen.', 'Seit zwei Stunden klingle ich und keiner kommt. Wollen Sie mich hier verrecken lassen?', '14.03.1968', 'maennlich', 'Station Chirurgie, post-OP (Hueft-TEP)', 'Z.n. Hueft-TEP rechts; arterielle Hypertonie', 'Penicillin', 'Analgesie nach Schema; niedermolekulares Heparin', '2', 'Sturzrisiko erhoeht; Schmerzexazerbation', 'Ja (kein DNR); keine Patientenverfuegung', 'Ehefrau hinterlegt; keine Betreuung'),
+    ('22222222-2222-4222-8222-000000000002', 'keller', 1, 'Mr Keller, 58', 'Acute pain crisis after surgery, feels he is not being taken seriously, about to lose it.', 'angry, desperate, distrustful', 'De-escalate and take the pain seriously without making false promises.', 'I''ve been ringing for two hours and nobody comes. Are you going to let me die in here?', '14/03/1968', 'male', 'Surgical ward, post-op (total hip replacement)', 'Status post right total hip replacement; arterial hypertension', 'Penicillin', 'Analgesia per protocol; low-molecular-weight heparin', '2', 'Increased fall risk; pain exacerbation', 'Yes (no DNR); no advance directive', 'Wife on file; no legal guardian'),
+    ('22222222-2222-4222-8222-000000000003', 'schmidt', 0, 'Frau Schmidt, 71', 'Hat gerade eine Krebsdiagnose erhalten, sitzt allein im Zimmer.', 'geschockt, weinend, klammert sich an Hoffnung', 'Schlechte Nachricht begleiten, Gefuehle aushalten, nicht beschwichtigen.', 'Sagen Sie mir... das stimmt doch nicht, oder? Das muss ein Fehler sein.', '02.09.1954', 'weiblich', 'Station Onkologie; Diagnoseeroeffnung', 'Neu diagnostiziertes Mamma-Ca; Osteoporose', 'keine bekannt', 'Bisphosphonat; Bedarfsmedikation', '1', 'psychische Krise; Schlafstoerung', 'Ja; Patientenverfuegung vorhanden', 'Tochter hinterlegt'),
+    ('22222222-2222-4222-8222-000000000004', 'schmidt', 1, 'Mrs Schmidt, 71', 'Has just received a cancer diagnosis, sitting alone in her room.', 'shocked, crying, clinging to hope', 'Accompany bad news, tolerate the feelings, do not placate.', 'Tell me... that''s not true, is it? It has to be a mistake.', '02/09/1954', 'female', 'Oncology ward; diagnosis disclosure', 'Newly diagnosed breast cancer; osteoporosis', 'none known', 'Bisphosphonate; medication as needed', '1', 'Psychological crisis; sleep disturbance', 'Yes; advance directive in place', 'Daughter on file'),
+    ('22222222-2222-4222-8222-000000000005', 'yilmaz', 0, 'Herr Yilmaz, 34', 'Panikattacke auf Station, Atemnot, Angst zu sterben.', 'panisch, hyperventilierend, kann kaum sprechen', 'Beruhigen, Atmung fuehren, Sicherheit vermitteln.', 'Ich... ich krieg keine Luft... ich glaub ich sterbe... helfen Sie mir!', '21.11.1991', 'maennlich', 'Notaufnahme/Innere; akute Atemnot', 'Panikattacke; V.a. Angststoerung; somatisch unauffaellig', 'keine bekannt', 'keine Dauermedikation', 'kein', 'Hyperventilation; Wiederholungsattacken', 'Ja (kein DNR); keine Patientenverfuegung', 'Lebensgefaehrtin erreichbar'),
+    ('22222222-2222-4222-8222-000000000006', 'yilmaz', 1, 'Mr Yilmaz, 34', 'Panic attack on the ward, shortness of breath, afraid of dying.', 'panicking, hyperventilating, can barely speak', 'Calm him down, guide his breathing, convey safety.', 'I... I can''t breathe... I think I''m dying... help me!', '21/11/1991', 'male', 'Emergency department / internal medicine; acute shortness of breath', 'Panic attack; suspected anxiety disorder; no somatic findings', 'none known', 'no regular medication', 'none', 'Hyperventilation; recurrent attacks', 'Yes (no DNR); no advance directive', 'Partner reachable'),
+    ('22222222-2222-4222-8222-000000000007', 'entzug', 0, 'Herr Brandt, 41', 'Stationaerer Entzug, koerperlich unruhig und schwitzend, fordert sofort sein Medikament und droht, die Station auf eigene Faust zu verlassen.', 'gereizt, fordernd, misstrauisch, getrieben und unruhig, schwankt zwischen Druck machen und Verzweiflung', 'Klare Grenzen setzen und gleichzeitig empathisch bleiben, ruhig deeskalieren, Sicherheit gewaehrleisten, nicht moralisieren und sich nicht unter Druck setzen lassen.', 'Jetzt hoeren Sie mal zu: Ich brauche sofort was, mir geht''s beschissen. Und wenn keiner spurt, bin ich hier gleich weg.', '05.06.1984', 'maennlich', 'Station; stationaerer Entzug', 'Alkoholabhaengigkeit; Entzugssyndrom', 'keine bekannt', 'Entzugsmedikation nach Schema; Thiamin (Vitamin B)', 'kein', 'Weglaufgefahr; Aggression; Entzugskomplikationen (Krampf/Delir)', 'Ja (kein DNR); keine Patientenverfuegung', 'kein Kontakt hinterlegt; gesetzl. Betreuung offen'),
+    ('22222222-2222-4222-8222-000000000008', 'entzug', 1, 'Mr Brandt, 41', 'Inpatient detox, physically restless and sweating, demands his medication right now and threatens to leave the ward on his own.', 'irritable, demanding, distrustful, driven and restless, swinging between pressure and despair', 'Set clear boundaries while staying empathetic, de-escalate calmly, ensure safety, do not moralise and do not let yourself be pressured.', 'Now you listen to me: I need something right now, I feel like hell. And if nobody moves, I''m out of here.', '05/06/1984', 'male', 'Ward; inpatient detoxification', 'Alcohol dependence; withdrawal syndrome', 'none known', 'Withdrawal medication per protocol; thiamine (vitamin B)', 'none', 'Risk of absconding; aggression; withdrawal complications (seizure/delirium)', 'Yes (no DNR); no advance directive', 'no contact on file; legal guardianship pending'),
+    ('22222222-2222-4222-8222-000000000009', 'vogel', 0, 'Frau Vogel, 68', 'Akute Verwirrtheit nach Narkose, will Zugaenge ziehen und aus dem Bett aufstehen.', 'desorientiert, aengstlich, abwehrend', 'Orientierung geben, beruhigen, Sicherheit ohne Zwang, ruhig deeskalieren.', 'Wo bin ich hier? Lassen Sie mich los, ich muss nach Hause!', '03.02.1958', 'weiblich', 'Station Chirurgie; postoperativ nach Hueft-OP', 'Postoperatives Delir; Z.n. Hueft-TEP', 'keine bekannt', 'Analgesie nach Schema; Bedarfsmedikation', '2', 'Sturzgefahr; Selbstgefaehrdung; Entfernen von Zugaengen', 'Ja (kein DNR); keine Patientenverfuegung', 'Sohn hinterlegt'),
+    ('22222222-2222-4222-8222-000000000010', 'vogel', 1, 'Mrs Vogel, 68', 'Acute confusion after anaesthesia, wants to pull out her IV lines and get out of bed.', 'disoriented, anxious, defensive', 'Provide orientation, calm her, ensure safety without coercion, de-escalate calmly.', 'Where am I? Let go of me, I have to go home!', '03/02/1958', 'female', 'Surgical ward; post-operative after hip surgery', 'Post-operative delirium; status post total hip replacement', 'none known', 'Analgesia per protocol; medication as needed', '2', 'Fall risk; self-endangerment; removal of IV lines', 'Yes (no DNR); no advance directive', 'Son on file')
+) as values_list(night_shift_template_text_guid, template_key, language, name, situation, emotion, learning_goal, opener, born, gender, admission, diagnoses, allergies, medication, care_level, risks, resuscitation, relatives)
+join simulation.night_shift_templates template
+    on template.key = values_list.template_key
+    and template.state <> 3
+on conflict do nothing;

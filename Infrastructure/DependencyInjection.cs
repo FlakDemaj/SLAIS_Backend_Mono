@@ -38,6 +38,7 @@ public static class DependencyInjection
     {
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<INightShiftSessionRepository, NightShiftSessionRepository>();
+        services.AddScoped<INightShiftTemplateRepository, NightShiftTemplateRepository>();
     }
 
     private static void AddPipeline(IServiceCollection services)

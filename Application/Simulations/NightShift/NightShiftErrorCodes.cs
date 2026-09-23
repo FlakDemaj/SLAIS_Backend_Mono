@@ -23,5 +23,8 @@ public enum NightShiftErrorCodes
     LlmUnavailable = -520006,
 
     [Description("Ungueltige Anfrage.")]
-    InvalidRequest = -520007
+    InvalidRequest = -520007,
+
+    [Description("Keine aktiven Fallvorlagen vorhanden.")]
+    NoActiveTemplates = -520008
 }
