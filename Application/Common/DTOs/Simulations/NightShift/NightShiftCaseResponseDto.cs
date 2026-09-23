@@ -9,4 +9,6 @@ public class NightShiftCaseResponseDto
     public required string Situation { get; init; }
 
     public required string Lernziel { get; init; }
+
+    public bool LanguageFallback { get; init; }
 }

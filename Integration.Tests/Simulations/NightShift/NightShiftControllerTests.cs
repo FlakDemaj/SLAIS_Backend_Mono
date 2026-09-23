@@ -15,7 +15,10 @@ using FluentAssertions;
 
 using Integration.Tests.Common;
 
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+
+using Tests.Domain.Shared.Builders;
 
 using Tests.Domain.Shared.TestDataCreator;
 
@@ -36,6 +39,7 @@ public class NightShiftControllerTests : TestBase
     [Fact]
     public async Task Cases_AsStudent_ShouldListCuratedAndRandom()
     {
+        await _nightShiftTemplateRepo.SeedCuratedAsync();
         var institute = await _instituteRepo.CreateInstituteAsync();
         var student = await _userRepo.CreateStudentAsync(institute.Guid);
         AuthenticateAs(student);
@@ -44,7 +48,7 @@ public class NightShiftControllerTests : TestBase
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
         var result = await DeserializeResponseAsync<List<NightShiftCaseResponseDto>>(response);
-        result!.Should().HaveCount(5);
+        result!.Should().HaveCount(6);
         result[^1].Key.Should().Be("random");
         result[0].Name.Should().Be("Herr Keller, 58");
     }
@@ -52,6 +56,7 @@ public class NightShiftControllerTests : TestBase
     [Fact]
     public async Task Cases_WithEnglish_ShouldReturnEnglishNames()
     {
+        await _nightShiftTemplateRepo.SeedCuratedAsync();
         var institute = await _instituteRepo.CreateInstituteAsync();
         var student = await _userRepo.CreateStudentAsync(institute.Guid);
         AuthenticateAs(student);
@@ -64,8 +69,80 @@ public class NightShiftControllerTests : TestBase
     }
 
     [Fact]
+    public async Task Cases_ShouldNotListPendingOrArchivedTemplates()
+    {
+        await _nightShiftTemplateRepo.SeedCuratedAsync();
+        var pendingTemplate = new NightShiftTemplateEntityBuilder()
+            .WithKey("entwurf")
+            .Build();
+        var archivedTemplate = new NightShiftTemplateEntityBuilder()
+            .WithKey("archiv")
+            .WithEnglishText()
+            .WithState(States.Active)
+            .Build();
+        archivedTemplate.Archive(null);
+        await _nightShiftTemplateRepo.CreateAsync(pendingTemplate);
+        await _nightShiftTemplateRepo.CreateAsync(archivedTemplate);
+        var institute = await _instituteRepo.CreateInstituteAsync();
+        var student = await _userRepo.CreateStudentAsync(institute.Guid);
+        AuthenticateAs(student);
+
+        var response = await _client.GetAsync(Routings.RestNightShiftCasesRouting);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var result = await DeserializeResponseAsync<List<NightShiftCaseResponseDto>>(response);
+        result!.Should().NotContain(template => template.Key == "entwurf");
+        result.Should().NotContain(template => template.Key == "archiv");
+    }
+
+    [Fact]
+    public async Task Cases_ShouldOrderBySortOrder()
+    {
+        await _nightShiftTemplateRepo.SeedCuratedAsync();
+        var template = new NightShiftTemplateEntityBuilder()
+            .WithKey("erster")
+            .WithSortOrder(1)
+            .WithEnglishText()
+            .WithState(States.Active)
+            .Build();
+        await _nightShiftTemplateRepo.CreateAsync(template);
+        var institute = await _instituteRepo.CreateInstituteAsync();
+        var student = await _userRepo.CreateStudentAsync(institute.Guid);
+        AuthenticateAs(student);
+
+        var response = await _client.GetAsync(Routings.RestNightShiftCasesRouting);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var result = await DeserializeResponseAsync<List<NightShiftCaseResponseDto>>(response);
+        result![0].Key.Should().Be("erster");
+    }
+
+    [Fact]
+    public async Task Cases_WithEnglish_WhenEnglishTextMissing_ShouldFallbackToGermanAndFlagIt()
+    {
+        var template = new NightShiftTemplateEntityBuilder()
+            .WithKey("nur-deutsch")
+            .WithEnglishText()
+            .WithState(States.Active)
+            .Build();
+        template.Texts.Remove(template.GetText(Language.English)!);
+        await _nightShiftTemplateRepo.CreateAsync(template);
+        var institute = await _instituteRepo.CreateInstituteAsync();
+        var student = await _userRepo.CreateStudentAsync(institute.Guid);
+        AuthenticateAs(student);
+
+        var response = await _client.GetAsync(Routings.RestNightShiftCasesRouting + "?lang=en");
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        document.RootElement[0].GetProperty("name").GetString().Should().Be("Herr Keller, 58");
+        document.RootElement[0].GetProperty("languageFallback").GetBoolean().Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Start_WithKeller_ShouldReturnOpenerAndStammblatt()
     {
+        await _nightShiftTemplateRepo.SeedCuratedAsync();
         var institute = await _instituteRepo.CreateInstituteAsync();
         var student = await _userRepo.CreateStudentAsync(institute.Guid);
         AuthenticateAs(student);
@@ -82,8 +159,61 @@ public class NightShiftControllerTests : TestBase
     }
 
     [Fact]
+    public async Task Start_WithArchivedKey_ShouldReturnInvalidCase()
+    {
+        var template = new NightShiftTemplateEntityBuilder()
+            .WithKey("archiv")
+            .WithEnglishText()
+            .WithState(States.Active)
+            .Build();
+        template.Archive(null);
+        await _nightShiftTemplateRepo.CreateAsync(template);
+        var institute = await _instituteRepo.CreateInstituteAsync();
+        var student = await _userRepo.CreateStudentAsync(institute.Guid);
+        AuthenticateAs(student);
+
+        var response = await StartAsync("archiv");
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var error = await DeserializeResponseAsync<ErrorResponseDto>(response);
+        error!.ErrorCode.Should().Be((int)NightShiftErrorCodes.InvalidCase);
+    }
+
+    [Fact]
+    public async Task Start_WithoutActiveTemplates_ShouldReturnNoActiveTemplates()
+    {
+        var institute = await _instituteRepo.CreateInstituteAsync();
+        var student = await _userRepo.CreateStudentAsync(institute.Guid);
+        AuthenticateAs(student);
+
+        var response = await _client.PostAsJsonAsync(Routings.RestNightShiftStartRouting, new { });
+
+        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var error = await DeserializeResponseAsync<ErrorResponseDto>(response);
+        error!.ErrorCode.Should().Be((int)NightShiftErrorCodes.NoActiveTemplates);
+    }
+
+    [Fact]
+    public async Task Start_ShouldStoreTemplateGuidOnSession()
+    {
+        var templates = await _nightShiftTemplateRepo.SeedCuratedAsync();
+        var kellerTemplate = templates.Single(template => template.Key == "keller");
+        var institute = await _instituteRepo.CreateInstituteAsync();
+        var student = await _userRepo.CreateStudentAsync(institute.Guid);
+        AuthenticateAs(student);
+        await StartAsync("keller");
+
+        var response = await _client.GetAsync(Routings.RestNightShiftSessionsRouting);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var result = await DeserializeResponseAsync<List<NightShiftSessionSummaryResponseDto>>(response);
+        result![0].TemplateId.Should().Be(kellerTemplate.Guid);
+    }
+
+    [Fact]
     public async Task Chat_WithDo_ShouldStoreActionRole()
     {
+        await _nightShiftTemplateRepo.SeedCuratedAsync();
         var institute = await _instituteRepo.CreateInstituteAsync();
         var student = await _userRepo.CreateStudentAsync(institute.Guid);
         AuthenticateAs(student);
@@ -104,6 +234,7 @@ public class NightShiftControllerTests : TestBase
     [Fact]
     public async Task Session_Detail_ShouldContainSessionCaseStammblattMessagesFeedback()
     {
+        await _nightShiftTemplateRepo.SeedCuratedAsync();
         var institute = await _instituteRepo.CreateInstituteAsync();
         var student = await _userRepo.CreateStudentAsync(institute.Guid);
         AuthenticateAs(student);
@@ -124,6 +255,7 @@ public class NightShiftControllerTests : TestBase
     [Fact]
     public async Task Chat_AfterEnde_ShouldReturnSessionAlreadyEnded()
     {
+        await _nightShiftTemplateRepo.SeedCuratedAsync();
         var institute = await _instituteRepo.CreateInstituteAsync();
         var student = await _userRepo.CreateStudentAsync(institute.Guid);
         AuthenticateAs(student);
@@ -146,6 +278,7 @@ public class NightShiftControllerTests : TestBase
     [Fact]
     public async Task Chat_AsOtherUser_ShouldReturnForbiddenCode()
     {
+        await _nightShiftTemplateRepo.SeedCuratedAsync();
         var institute = await _instituteRepo.CreateInstituteAsync();
         var student = await _userRepo.CreateStudentAsync(institute.Guid);
         var otherStudent = await _userRepo.CreateStudentAsync(institute.Guid);
@@ -165,6 +298,7 @@ public class NightShiftControllerTests : TestBase
     [Fact]
     public async Task Finish_Twice_ShouldCallLlmOnce()
     {
+        await _nightShiftTemplateRepo.SeedCuratedAsync();
         var institute = await _instituteRepo.CreateInstituteAsync();
         var student = await _userRepo.CreateStudentAsync(institute.Guid);
         AuthenticateAs(student);
@@ -191,6 +325,7 @@ public class NightShiftControllerTests : TestBase
     [Fact]
     public async Task Finish_WithoutStudentTurn_ShouldReturnNotOk()
     {
+        await _nightShiftTemplateRepo.SeedCuratedAsync();
         var institute = await _instituteRepo.CreateInstituteAsync();
         var student = await _userRepo.CreateStudentAsync(institute.Guid);
         AuthenticateAs(student);
@@ -218,6 +353,7 @@ public class NightShiftControllerTests : TestBase
     [Fact]
     public async Task Finish_WithMalformedFeedback_ShouldNotPersist()
     {
+        await _nightShiftTemplateRepo.SeedCuratedAsync();
         var institute = await _instituteRepo.CreateInstituteAsync();
         var student = await _userRepo.CreateStudentAsync(institute.Guid);
         AuthenticateAs(student);
@@ -257,7 +393,8 @@ public class NightShiftControllerTests : TestBase
 
         foreach (var language in new[] { Language.German, Language.English })
         {
-            var patientCase = CuratedCases.For(language)[0];
+            var template = NightShiftTemplateTestData.CreateCuratedTemplates()[0];
+            var patientCase = PatientCaseFactory.FromTemplate(template, language).Case;
             var prompts = new[]
             {
                 promptBuilder.BuildPatientPrompt(patientCase, language),
@@ -279,6 +416,7 @@ public class NightShiftControllerTests : TestBase
     [Fact]
     public async Task Sessions_ShouldListOnlyOwn()
     {
+        await _nightShiftTemplateRepo.SeedCuratedAsync();
         var institute = await _instituteRepo.CreateInstituteAsync();
         var student = await _userRepo.CreateStudentAsync(institute.Guid);
         var otherStudent = await _userRepo.CreateStudentAsync(institute.Guid);
@@ -299,6 +437,7 @@ public class NightShiftControllerTests : TestBase
     [Fact]
     public async Task Start_AsServer_ShouldBeRejected()
     {
+        await _nightShiftTemplateRepo.SeedCuratedAsync();
         var server = UserTestData.CreateUser(Roles.Student);
         var role = typeof(UserEntity).GetProperty("Role", BindingFlags.Instance | BindingFlags.Public);
         role!.SetValue(server, Roles.Server);
@@ -315,6 +454,32 @@ public class NightShiftControllerTests : TestBase
             var error = await DeserializeResponseAsync<ErrorResponseDto>(response);
             error!.ErrorCode.Should().Be((int)NightShiftErrorCodes.Forbidden);
         }
+    }
+
+    [Fact]
+    public async Task Migration_ShouldCreateTemplateTables()
+    {
+        var tables = await _dbContext.Database.SqlQueryRaw<string>(
+            """
+            select table_name as "Value"
+            from information_schema.tables
+            where table_schema = 'simulation'
+              and table_name in ('night_shift_templates', 'night_shift_template_texts')
+            """)
+            .ToListAsync();
+        var columns = await _dbContext.Database.SqlQueryRaw<string>(
+            """
+            select column_name as "Value"
+            from information_schema.columns
+            where table_schema = 'simulation'
+              and table_name = 'night_shift_sessions'
+              and column_name = 'fk_night_shift_template_guid'
+            """)
+            .ToListAsync();
+
+        tables.Should().Contain("night_shift_templates");
+        tables.Should().Contain("night_shift_template_texts");
+        columns.Should().Contain("fk_night_shift_template_guid");
     }
 
     private Task<HttpResponseMessage> StartAsync(string caseKey)

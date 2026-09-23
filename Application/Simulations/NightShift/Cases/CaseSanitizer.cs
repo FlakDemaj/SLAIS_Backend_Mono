@@ -6,22 +6,27 @@ namespace Application.Simulations.NightShift.Cases;
 
 public static class CaseSanitizer
 {
-    public static PatientCase FromJson(string json, Language language)
+    public static PatientCase FromJson(
+        string json,
+        Language language,
+        PatientCase fallback)
     {
         try
         {
             using var document = JsonDocument.Parse(json);
-            return FromElement(document.RootElement, language);
+            return FromElement(document.RootElement, language, fallback);
         }
         catch (JsonException)
         {
-            return CuratedCases.Fallback(language);
+            return fallback;
         }
     }
 
-    private static PatientCase FromElement(JsonElement element, Language language)
+    private static PatientCase FromElement(
+        JsonElement element,
+        Language language,
+        PatientCase fallback)
     {
-        var fallback = CuratedCases.Fallback(language);
         if (element.ValueKind != JsonValueKind.Object)
         {
             return fallback;
@@ -31,7 +36,7 @@ public static class CaseSanitizer
         var unavailable = language == Language.English ? "n/a" : "k.A.";
         return new PatientCase
         {
-            Key = CuratedCases.RandomKey,
+            Key = "random",
             Name = StringValue(Get(element, "name"), "Patient", 60),
             Situation = StringValue(Get(element, "situation"), string.Empty, 200),
             Emotion = StringValue(Get(element, "emotion"), "angespannt", 120),

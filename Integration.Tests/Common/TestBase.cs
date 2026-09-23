@@ -28,8 +28,9 @@ public abstract class TestBase : IAsyncLifetime
     protected readonly HttpClient _client;
     protected readonly UserTestRepository _userRepo;
     protected readonly InstituteTestRepository _instituteRepo;
+    protected readonly NightShiftTemplateTestRepository _nightShiftTemplateRepo;
 
-    private readonly SlaisDbContext _dbContext;
+    protected readonly SlaisDbContext _dbContext;
     private readonly IServiceScope _scope;
 
     private static readonly HashSet<string> _excludedSchemas = ["evolve"];
@@ -54,6 +55,7 @@ public abstract class TestBase : IAsyncLifetime
 
         _userRepo = new UserTestRepository(_dbContext, passwordHasher);
         _instituteRepo = new InstituteTestRepository(_dbContext);
+        _nightShiftTemplateRepo = new NightShiftTemplateTestRepository(_dbContext);
     }
 
     public virtual async Task InitializeAsync()

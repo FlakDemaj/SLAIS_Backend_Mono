@@ -13,6 +13,7 @@ public sealed class NightShiftMapperProfile : Profile
     {
         CreateMap<NightShiftSessionEntity, NightShiftSessionSummaryResponseDto>()
             .ForMember(dto => dto.SessionId, options => options.MapFrom(entity => entity.Guid))
+            .ForMember(dto => dto.TemplateId, options => options.MapFrom(entity => entity.TemplateGuid))
             .ForMember(dto => dto.HasFeedback, options => options.MapFrom(entity => entity.Feedback != null))
             .ForMember(dto => dto.Turns, options => options.MapFrom(entity => entity.Messages.Count(message =>
                 message.Role == NightShiftMessageRole.Student
