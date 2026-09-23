@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using System.Reflection;
 
 using Application;
@@ -8,7 +9,9 @@ using Application.Utils.Interfaces.Transaction;
 using Application.Utils.Logger;
 using Application.Utils.Mediator.Interfaces;
 
+using Infrastructure.Configurations;
 using Infrastructure.InternalServices;
+using Infrastructure.InternalServices.NightShift;
 using Infrastructure.Persistence;
 using Infrastructure.Persistence.Context;
 using Infrastructure.Pipelines;
@@ -17,6 +20,7 @@ using Infrastructure.Pipelines.Transaction;
 using Infrastructure.Repositorys;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace Infrastructure;
 
@@ -33,6 +37,7 @@ public static class DependencyInjection
     private static void AddRepositories(IServiceCollection services)
     {
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<INightShiftSessionRepository, NightShiftSessionRepository>();
     }
 
     private static void AddPipeline(IServiceCollection services)
@@ -52,6 +57,14 @@ public static class DependencyInjection
         services.AddSingleton(typeof(ISlaisLogger<>), typeof(SlaisLogger<>));
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();
+        services.AddSingleton<INightShiftPromptBuilder, NightShiftPromptBuilder>();
+        services.AddHttpClient<ILlmClient, OpenAiLlmClient>((serviceProvider, client) =>
+        {
+            var options = serviceProvider.GetRequiredService<IOptions<NightShiftOptions>>().Value.OpenAi;
+            client.BaseAddress = new Uri(options.BaseUrl);
+            client.Timeout = TimeSpan.FromSeconds(60);
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", options.ApiKey);
+        });
     }
 
     private static void AddMediator(IServiceCollection services)

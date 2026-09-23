@@ -37,4 +37,8 @@
         </None>
     </ItemGroup>
 
+    <ItemGroup>
+        <EmbeddedResource Include="InternalServices\NightShift\Prompts\**\*.md" />
+    </ItemGroup>
+
 </Project>
