@@ -173,6 +173,8 @@ public static class Startup
             builder.Configuration.GetSection("RefreshToken"));
         builder.Services.Configure<CommonOptions>(
             builder.Configuration.GetSection("CommonOptions"));
+        builder.Services.Configure<NightShiftOptions>(
+            builder.Configuration.GetSection("NightShift"));
 
     }
 }
