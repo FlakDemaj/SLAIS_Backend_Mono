@@ -14,7 +14,9 @@ public sealed class NightShiftMapperProfile : Profile
         CreateMap<NightShiftSessionEntity, NightShiftSessionSummaryResponseDto>()
             .ForMember(dto => dto.SessionId, options => options.MapFrom(entity => entity.Guid))
             .ForMember(dto => dto.HasFeedback, options => options.MapFrom(entity => entity.Feedback != null))
-            .ForMember(dto => dto.Turns, options => options.MapFrom(entity => entity.Messages.Count(message => message.Role == NightShiftMessageRole.Student || message.Role == NightShiftMessageRole.Action)));
+            .ForMember(dto => dto.Turns, options => options.MapFrom(entity => entity.Messages.Count(message =>
+                message.Role == NightShiftMessageRole.Student
+                || message.Role == NightShiftMessageRole.Action)));
 
         CreateMap<NightShiftMessageEntity, NightShiftSessionMessageDto>()
             .ForMember(dto => dto.Role, options => options.MapFrom(entity => ToRole(entity.Role)))
@@ -24,8 +26,22 @@ public sealed class NightShiftMapperProfile : Profile
         CreateMap<NightShiftFeedbackEntity, NightShiftFeedbackResponseDto>()
             .ForMember(dto => dto.Feedback, options => options.MapFrom(entity => entity.Summary))
             .ForMember(dto => dto.Summary, options => options.MapFrom(entity => entity.Summary))
-            .ForMember(dto => dto.Scores, options => options.MapFrom(entity => new NightShiftDimensionScoresDto { Fachlich = entity.ScoreProfessional, Sympathie = entity.ScoreRapport, Empathie = entity.ScoreEmpathy, Zuhoeren = entity.ScoreListening, Klarheit = entity.ScoreClarity }))
-            .ForMember(dto => dto.PerDimension, options => options.MapFrom(entity => new NightShiftDimensionTextsDto { Fachlich = entity.TextProfessional, Sympathie = entity.TextRapport, Empathie = entity.TextEmpathy, Zuhoeren = entity.TextListening, Klarheit = entity.TextClarity }))
+            .ForMember(dto => dto.Scores, options => options.MapFrom(entity => new NightShiftDimensionScoresDto
+            {
+                Fachlich = entity.ScoreProfessional,
+                Sympathie = entity.ScoreRapport,
+                Empathie = entity.ScoreEmpathy,
+                Zuhoeren = entity.ScoreListening,
+                Klarheit = entity.ScoreClarity
+            }))
+            .ForMember(dto => dto.PerDimension, options => options.MapFrom(entity => new NightShiftDimensionTextsDto
+            {
+                Fachlich = entity.TextProfessional,
+                Sympathie = entity.TextRapport,
+                Empathie = entity.TextEmpathy,
+                Zuhoeren = entity.TextListening,
+                Klarheit = entity.TextClarity
+            }))
             .ForMember(dto => dto.Labels, options => options.Ignore());
     }
 

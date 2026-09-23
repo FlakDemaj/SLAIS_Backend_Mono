@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 
@@ -47,90 +48,116 @@ public class OpenAiLlmClient : ILlmClient
         string tag,
         CancellationToken cancellationToken)
     {
-        try
+        for (var attempt = 0; attempt < 2; attempt++)
         {
-            using var request = new HttpRequestMessage(HttpMethod.Post, "chat/completions");
-
-            if (jsonMode)
+            try
             {
-                request.Content = JsonContent.Create(new
+                using var request = new HttpRequestMessage(HttpMethod.Post, "chat/completions");
+
+                if (jsonMode)
                 {
-                    model = Model,
-                    messages = messages.Select(message => new { role = message.Role, content = message.Content }),
-                    temperature,
-                    max_tokens = maxTokens,
-                    response_format = new { type = "json_object" }
-                });
-            }
-            else
-            {
-                request.Content = JsonContent.Create(new
+                    request.Content = JsonContent.Create(new
+                    {
+                        model = Model,
+                        messages = messages.Select(message => new { role = message.Role, content = message.Content }),
+                        temperature,
+                        max_tokens = maxTokens,
+                        response_format = new { type = "json_object" }
+                    });
+                }
+                else
                 {
-                    model = Model,
-                    messages = messages.Select(message => new { role = message.Role, content = message.Content }),
-                    temperature,
-                    max_tokens = maxTokens
-                });
+                    request.Content = JsonContent.Create(new
+                    {
+                        model = Model,
+                        messages = messages.Select(message => new { role = message.Role, content = message.Content }),
+                        temperature,
+                        max_tokens = maxTokens
+                    });
+                }
+
+                using var response = await _httpClient.SendAsync(request, cancellationToken);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var reason = "OpenAI returned status " + response.StatusCode + ".";
+                    if (response.StatusCode != HttpStatusCode.TooManyRequests && (int)response.StatusCode < 500)
+                    {
+                        LogUnavailable(tag, reason);
+                        throw new SlaisException(NightShiftErrorCodes.LlmUnavailable);
+                    }
+
+                    throw new HttpRequestException(reason);
+                }
+
+                using var document = JsonDocument.Parse(
+                    await response.Content.ReadAsStringAsync(cancellationToken));
+                var content = document.RootElement
+                    .GetProperty("choices")[0]
+                    .GetProperty("message")
+                    .GetProperty("content")
+                    .GetString();
+
+                if (string.IsNullOrWhiteSpace(content))
+                {
+                    LogUnavailable(tag, "OpenAI returned no message content.");
+                    throw new SlaisException(NightShiftErrorCodes.LlmUnavailable);
+                }
+
+                return content.Trim();
             }
-
-            using var response = await _httpClient.SendAsync(request, cancellationToken);
-
-            if (!response.IsSuccessStatusCode)
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                LogUnavailable(tag, "OpenAI returned status " + response.StatusCode + ".");
+                throw;
+            }
+            catch (SlaisException)
+            {
+                throw;
+            }
+            catch (HttpRequestException exception)
+            {
+                if (attempt == 1)
+                {
+                    LogUnavailable(tag, exception.Message);
+                    throw new SlaisException(NightShiftErrorCodes.LlmUnavailable);
+                }
+            }
+            catch (TaskCanceledException exception)
+            {
+                if (attempt == 1)
+                {
+                    LogUnavailable(tag, exception.Message);
+                    throw new SlaisException(NightShiftErrorCodes.LlmUnavailable);
+                }
+            }
+            catch (JsonException exception)
+            {
+                LogUnavailable(tag, exception.Message);
+                throw new SlaisException(NightShiftErrorCodes.LlmUnavailable);
+            }
+            catch (KeyNotFoundException exception)
+            {
+                LogUnavailable(tag, exception.Message);
+                throw new SlaisException(NightShiftErrorCodes.LlmUnavailable);
+            }
+            catch (IndexOutOfRangeException exception)
+            {
+                LogUnavailable(tag, exception.Message);
+                throw new SlaisException(NightShiftErrorCodes.LlmUnavailable);
+            }
+            catch (InvalidOperationException exception)
+            {
+                LogUnavailable(tag, exception.Message);
                 throw new SlaisException(NightShiftErrorCodes.LlmUnavailable);
             }
 
-            using var document = JsonDocument.Parse(
-                await response.Content.ReadAsStringAsync(cancellationToken));
-            var content = document.RootElement
-                .GetProperty("choices")[0]
-                .GetProperty("message")
-                .GetProperty("content")
-                .GetString();
-
-            if (string.IsNullOrWhiteSpace(content))
+            if (attempt == 0)
             {
-                LogUnavailable(tag, "OpenAI returned no message content.");
-                throw new SlaisException(NightShiftErrorCodes.LlmUnavailable);
+                await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
             }
+        }
 
-            return content.Trim();
-        }
-        catch (SlaisException)
-        {
-            throw;
-        }
-        catch (HttpRequestException exception)
-        {
-            LogUnavailable(tag, exception.Message);
-            throw new SlaisException(NightShiftErrorCodes.LlmUnavailable);
-        }
-        catch (TaskCanceledException exception)
-        {
-            LogUnavailable(tag, exception.Message);
-            throw new SlaisException(NightShiftErrorCodes.LlmUnavailable);
-        }
-        catch (JsonException exception)
-        {
-            LogUnavailable(tag, exception.Message);
-            throw new SlaisException(NightShiftErrorCodes.LlmUnavailable);
-        }
-        catch (KeyNotFoundException exception)
-        {
-            LogUnavailable(tag, exception.Message);
-            throw new SlaisException(NightShiftErrorCodes.LlmUnavailable);
-        }
-        catch (IndexOutOfRangeException exception)
-        {
-            LogUnavailable(tag, exception.Message);
-            throw new SlaisException(NightShiftErrorCodes.LlmUnavailable);
-        }
-        catch (InvalidOperationException exception)
-        {
-            LogUnavailable(tag, exception.Message);
-            throw new SlaisException(NightShiftErrorCodes.LlmUnavailable);
-        }
+        throw new SlaisException(NightShiftErrorCodes.LlmUnavailable);
     }
 
     private void LogUnavailable(string tag, string reason)

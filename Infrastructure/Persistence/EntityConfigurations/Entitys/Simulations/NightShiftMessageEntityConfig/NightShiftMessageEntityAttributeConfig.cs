@@ -24,11 +24,31 @@ internal sealed class NightShiftMessageEntityAttributeConfig : BaseGuidEntityCon
 
         base.Configure(builder);
 
-        builder.Property(message => message.SessionGuid).HasColumnName("fk_night_shift_session_guid").IsRequired();
-        builder.Property(message => message.Role).HasColumnName("role").HasColumnType("smallint").IsRequired();
-        builder.Property(message => message.Content).HasColumnName("content").IsRequired();
-        builder.Property(message => message.SortOrder).HasColumnName("sort_order").IsRequired();
-        builder.Property(message => message.CreatedAt).HasColumnName("created_at").IsRequired();
+        builder
+            .Property(message => message.SessionGuid)
+            .HasColumnName("fk_night_shift_session_guid")
+            .IsRequired();
+
+        builder
+            .Property(message => message.Role)
+            .HasColumnName("role")
+            .HasColumnType("smallint")
+            .IsRequired();
+
+        builder
+            .Property(message => message.Content)
+            .HasColumnName("content")
+            .IsRequired();
+
+        builder
+            .Property(message => message.SortOrder)
+            .HasColumnName("sort_order")
+            .IsRequired();
+
+        builder
+            .Property(message => message.CreatedAt)
+            .HasColumnName("created_at")
+            .IsRequired();
 
         builder.AddForeignKeys();
         builder.AddIndexes();

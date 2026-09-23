@@ -8,6 +8,8 @@ public class FakeLlmClient : ILlmClient
 
     public int CallCount { get; private set; }
 
+    public string FeedbackMode { get; set; } = "valid";
+
     public Task<string> ChatAsync(
         IReadOnlyList<LlmChatMessage> messages,
         double temperature,
@@ -25,6 +27,11 @@ public class FakeLlmClient : ILlmClient
 
         if (jsonMode && messages[0].Content.Contains("Bewerte", StringComparison.Ordinal))
         {
+            if (FeedbackMode == "malformed")
+            {
+                return Task.FromResult("not json");
+            }
+
             return Task.FromResult("{\"scores\":{\"fachlich\":7,\"sympathie\":6,\"empathie\":8,\"zuhoeren\":5,\"klarheit\":6},\"per_dimension\":{\"fachlich\":\"ok\",\"sympathie\":\"ok\",\"empathie\":\"ok\",\"zuhoeren\":\"ok\",\"klarheit\":\"ok\"},\"summary\":\"Testfeedback\"}");
         }
 

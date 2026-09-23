@@ -12,7 +12,7 @@ Erzeuge EINEN einzigen, komplett neuen, extremen aber realistischen Pflege-Fall 
 # INTERNE KONSISTENZ
 - opener passt exakt zu situation und emotion (gleiche Lage, gleicher Ton).
 - stammblatt passt zum Fall: diagnosen erklaeren die situation; medikation/risiken/pflegegrad/aufnahme passen dazu; geboren passt zum Alter im name; geschlecht passt zum Namen; angehoerige/reanimation plausibel zur Lebenslage.
-- anspannung_start passt zur emotion (ruhig/resigniert niedrig, panisch/aggressiv hoch) und korreliert mit level.
+- anspannung_start passt zur emotion (ruhig/resigniert niedrig, panisch/aggressiv hoch).
 
 # STIL
 - {{SPRACHE}}
@@ -21,7 +21,7 @@ Erzeuge EINEN einzigen, komplett neuen, extremen aber realistischen Pflege-Fall 
 - Andere Felder: knapp, sachlich, kein Markdown.
 
 # WERTEBEREICHE
-- level: ganze Zahl 1-5. anspannung_start: ganze Zahl 0-10.
+- anspannung_start: ganze Zahl 0-10.
 - geboren: "TT.MM.JJJJ" passend zum Alter. pflegegrad: "kein"/"1"/"2"/"3"/"4"/"5".
 - allergien: "keine bekannt" oder konkrete Allergie. reanimation: z.B. "Ja (kein DNR); keine Patientenverfuegung".
 
@@ -31,4 +31,4 @@ Erzeuge EINEN einzigen, komplett neuen, extremen aber realistischen Pflege-Fall 
 - Nichts Verherrlichendes/Verharmlosendes. Heikle Themen (Verzweiflung, Lebensmuedigkeit, Suchtdruck, Aggression) nur als emotionale Lage mit Kommunikations-Lernwert, OHNE jede Anleitung.
 
 # AUSGABE
-Antworte mit GENAU EINEM JSON-Objekt mit den Feldern: name, situation, emotion, level (Zahl), lernziel, anspannung_start (Zahl), opener, stammblatt: {geboren, geschlecht, aufnahme, diagnosen, allergien, medikation, pflegegrad, risiken, reanimation, angehoerige}.
+Antworte mit GENAU EINEM JSON-Objekt mit den Feldern: name, situation, emotion, lernziel, anspannung_start (Zahl), opener, stammblatt: {geboren, geschlecht, aufnahme, diagnosen, allergien, medikation, pflegegrad, risiken, reanimation, angehoerige}.

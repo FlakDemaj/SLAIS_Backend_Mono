@@ -36,11 +36,7 @@ create table if not exists simulation.night_shift_sessions
     on delete restrict
     );
 
-create index if not exists idx_night_shift_sessions_fk_user_guid
-    on simulation.night_shift_sessions(fk_user_guid);
-
-create index if not exists idx_night_shift_sessions_started_at
-    on simulation.night_shift_sessions(started_at);
+create index if not exists idx_night_shift_sessions_fk_user_guid_started_at on simulation.night_shift_sessions(fk_user_guid, started_at desc);
 
 create index if not exists idx_night_shift_sessions_created_by
     on simulation.night_shift_sessions(created_by_user_guid);

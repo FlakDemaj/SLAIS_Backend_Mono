@@ -8,7 +8,9 @@ public static class NightShiftLanguage
 {
     public static Language Parse(string? code)
     {
-        return code is not null && code.Trim().StartsWith("en", StringComparison.OrdinalIgnoreCase) ? Language.English : Language.German;
+        return code is not null && code.Trim().StartsWith("en", StringComparison.OrdinalIgnoreCase)
+            ? Language.English
+            : Language.German;
     }
 
     public static string ToCode(Language language)
@@ -20,10 +22,24 @@ public static class NightShiftLanguage
     {
         if (language == Language.English)
         {
-            return new NightShiftDimensionTextsDto { Fachlich = "Professional accuracy", Sympathie = "Rapport", Empathie = "Empathy", Zuhoeren = "Active listening", Klarheit = "Clarity" };
+            return new NightShiftDimensionTextsDto
+            {
+                Fachlich = "Professional accuracy",
+                Sympathie = "Rapport",
+                Empathie = "Empathy",
+                Zuhoeren = "Active listening",
+                Klarheit = "Clarity"
+            };
         }
 
-        return new NightShiftDimensionTextsDto { Fachlich = "Fachliche Richtigkeit", Sympathie = "Sympathie", Empathie = "Empathie", Zuhoeren = "Aktives Zuhoeren", Klarheit = "Klarheit" };
+        return new NightShiftDimensionTextsDto
+        {
+            Fachlich = "Fachliche Richtigkeit",
+            Sympathie = "Sympathie",
+            Empathie = "Empathie",
+            Zuhoeren = "Aktives Zuhoeren",
+            Klarheit = "Klarheit"
+        };
     }
 
     public static string RandomCaseName(Language language)
@@ -38,17 +54,23 @@ public static class NightShiftLanguage
 
     public static string NoStudentTurnYet(Language language)
     {
-        return language == Language.English ? "No student contribution yet - please talk to the patient first." : "Noch kein Schuelerbeitrag - bitte zuerst mit dem Patienten sprechen.";
+        return language == Language.English
+            ? "No student contribution yet - please talk to the patient first."
+            : "Noch kein Schuelerbeitrag - bitte zuerst mit dem Patienten sprechen.";
     }
 
     public static string FeedbackUnavailable(Language language)
     {
-        return language == Language.English ? "The evaluation could not be generated - please try again." : "Auswertung konnte nicht erzeugt werden - bitte erneut versuchen.";
+        return language == Language.English
+            ? "The evaluation could not be generated - please try again."
+            : "Auswertung konnte nicht erzeugt werden - bitte erneut versuchen.";
     }
 
     public static string GeneratorUserMessage(Language language)
     {
-        return language == Language.English ? "Erzeuge jetzt EINEN neuen, ungewoehnlichen Extremfall als JSON. Alle Textfelder auf Englisch." : "Erzeuge jetzt EINEN neuen, ungewoehnlichen Extremfall als JSON.";
+        return language == Language.English
+            ? "Erzeuge jetzt EINEN neuen, ungewoehnlichen Extremfall als JSON. Alle Textfelder auf Englisch."
+            : "Erzeuge jetzt EINEN neuen, ungewoehnlichen Extremfall als JSON.";
     }
 
     public static string PatientSpeechRule(Language language)

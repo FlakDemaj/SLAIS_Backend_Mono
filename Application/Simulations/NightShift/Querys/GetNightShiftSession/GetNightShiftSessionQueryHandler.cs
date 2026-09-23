@@ -46,15 +46,27 @@ public class GetNightShiftSessionQueryHandler : BaseHandler<GetNightShiftSession
         var summary = _mapper.Map<NightShiftSessionSummaryResponseDto>(session);
         return new NightShiftSessionDetailResponseDto
         {
-            SessionId = summary.SessionId,
-            CaseKey = summary.CaseKey,
-            CaseName = summary.CaseName,
-            StartedAt = summary.StartedAt,
-            EndedAt = summary.EndedAt,
-            FinishedAt = summary.FinishedAt,
-            Ended = summary.Ended,
-            HasFeedback = summary.HasFeedback,
-            Turns = summary.Turns,
+            Session = summary,
+            Case = new NightShiftCaseResponseDto
+            {
+                Key = session.CaseKey,
+                Name = session.CaseName,
+                Situation = session.CaseSituation,
+                Lernziel = session.CaseLearningGoal
+            },
+            Stammblatt = new NightShiftStammblattDto
+            {
+                Geboren = session.RecordBorn,
+                Geschlecht = session.RecordGender,
+                Aufnahme = session.RecordAdmission,
+                Diagnosen = session.RecordDiagnoses,
+                Allergien = session.RecordAllergies,
+                Medikation = session.RecordMedication,
+                Pflegegrad = session.RecordCareLevel,
+                Risiken = session.RecordRisks,
+                Reanimation = session.RecordResuscitation,
+                Angehoerige = session.RecordRelatives
+            },
             Messages = _mapper.Map<List<NightShiftSessionMessageDto>>(session.Messages
                 .Where(message => message.Role != NightShiftMessageRole.System)
                 .ToList()),

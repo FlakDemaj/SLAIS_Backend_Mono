@@ -53,62 +53,73 @@ public class FinishNightShiftSessionCommandHandler : BaseHandler<FinishNightShif
             return ToResponse(session.Feedback, session.Language);
         }
 
-        NightShiftFeedbackEntity feedback;
         if (!session.Messages.Any(message => message.Role == NightShiftMessageRole.Student || message.Role == NightShiftMessageRole.Action))
         {
-            feedback = NightShiftFeedbackEntity.NotOk(
-                session.Guid,
-                NightShiftLanguage.NoStudentTurnYet(session.Language),
-                session.Model,
-                _promptBuilder.Version);
-        }
-        else
-        {
-            var patientCase = ToPatientCase(session);
-            var messages = new List<LlmChatMessage>
-            {
-                new("system", _promptBuilder.BuildFeedbackPrompt(patientCase, session.Language))
-            };
-            messages.AddRange(session.Messages
-                .Where(message => message.Role != NightShiftMessageRole.System)
-                .Select(message => new LlmChatMessage(
-                    message.Role == NightShiftMessageRole.Patient ? "assistant" : "user",
-                    message.Content)));
-            var raw = await _llmClient.ChatAsync(
-                messages,
-                0.3,
-                900,
-                true,
-                session.Guid.ToString(),
-                cancellationToken);
-            var parsed = NightShiftPromptTools.ParseFeedback(raw, session.Language);
-            feedback = parsed.Ok
-                ? NightShiftFeedbackEntity.Create(
-                    session.Guid,
-                    true,
-                    parsed.ScoreProfessional,
-                    parsed.ScoreRapport,
-                    parsed.ScoreEmpathy,
-                    parsed.ScoreListening,
-                    parsed.ScoreClarity,
-                    parsed.TextProfessional,
-                    parsed.TextRapport,
-                    parsed.TextEmpathy,
-                    parsed.TextListening,
-                    parsed.TextClarity,
-                    parsed.Summary,
-                    session.Model,
-                    _promptBuilder.Version)
-                : NightShiftFeedbackEntity.NotOk(
-                    session.Guid,
-                    parsed.Summary,
-                    session.Model,
-                    _promptBuilder.Version);
+            return NotOkResponse(NightShiftLanguage.NoStudentTurnYet(session.Language), session.Language);
         }
 
+        var patientCase = ToPatientCase(session);
+        var messages = new List<LlmChatMessage>
+        {
+            new("system", _promptBuilder.BuildFeedbackPrompt(patientCase, session.Language))
+        };
+        messages.AddRange(session.Messages
+            .Where(message => message.Role != NightShiftMessageRole.System)
+            .Select(message => new LlmChatMessage(
+                message.Role == NightShiftMessageRole.Patient ? "assistant" : "user",
+                message.Content)));
+        var raw = await _llmClient.ChatAsync(
+            messages,
+            0.3,
+            900,
+            true,
+            session.Guid.ToString(),
+            cancellationToken);
+        var parsed = NightShiftPromptTools.ParseFeedback(raw, session.Language);
+        if (!parsed.Ok)
+        {
+            return NotOkResponse(parsed.Summary, session.Language);
+        }
+
+        var feedback = NightShiftFeedbackEntity.Create(
+            session.Guid,
+            true,
+            parsed.ScoreProfessional,
+            parsed.ScoreRapport,
+            parsed.ScoreEmpathy,
+            parsed.ScoreListening,
+            parsed.ScoreClarity,
+            parsed.TextProfessional,
+            parsed.TextRapport,
+            parsed.TextEmpathy,
+            parsed.TextListening,
+            parsed.TextClarity,
+            parsed.Summary,
+            session.Model,
+            _promptBuilder.Version);
         await _nightShiftSessionRepository.AddFeedbackAsync(feedback);
         session.MarkFinished();
         return ToResponse(feedback, session.Language);
+    }
+
+    private NightShiftFeedbackResponseDto NotOkResponse(string summary, Language language)
+    {
+        return new NightShiftFeedbackResponseDto
+        {
+            Feedback = summary,
+            Ok = false,
+            Scores = new NightShiftDimensionScoresDto(),
+            Labels = NightShiftLanguage.Labels(language),
+            PerDimension = new NightShiftDimensionTextsDto
+            {
+                Fachlich = string.Empty,
+                Sympathie = string.Empty,
+                Empathie = string.Empty,
+                Zuhoeren = string.Empty,
+                Klarheit = string.Empty
+            },
+            Summary = summary
+        };
     }
 
     private NightShiftFeedbackResponseDto ToResponse(NightShiftFeedbackEntity feedback, Language language)

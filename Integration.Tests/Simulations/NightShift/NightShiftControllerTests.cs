@@ -1,9 +1,12 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Reflection;
+using System.Text.Json;
 
 using Application.Common.DTOs.Simulations.NightShift;
+using Application.Common.Interfaces.Services;
 using Application.Simulations.NightShift;
+using Application.Simulations.NightShift.Cases;
 
 using Domain.Common.Enums;
 using Domain.Public.Users;
@@ -99,6 +102,26 @@ public class NightShiftControllerTests : TestBase
     }
 
     [Fact]
+    public async Task Session_Detail_ShouldContainSessionCaseStammblattMessagesFeedback()
+    {
+        var institute = await _instituteRepo.CreateInstituteAsync();
+        var student = await _userRepo.CreateStudentAsync(institute.Guid);
+        AuthenticateAs(student);
+        var start = await StartAndDeserializeAsync("keller");
+
+        var response = await _client.GetAsync(
+            $"{Routings.RestNightShiftSessionsRouting}/{start.SessionId}");
+        var content = await response.Content.ReadAsStringAsync();
+        using var document = JsonDocument.Parse(content);
+
+        document.RootElement.TryGetProperty("session", out _).Should().BeTrue();
+        document.RootElement.TryGetProperty("case", out _).Should().BeTrue();
+        document.RootElement.TryGetProperty("stammblatt", out _).Should().BeTrue();
+        document.RootElement.TryGetProperty("messages", out _).Should().BeTrue();
+        document.RootElement.TryGetProperty("feedback", out _).Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Chat_AfterEnde_ShouldReturnSessionAlreadyEnded()
     {
         var institute = await _instituteRepo.CreateInstituteAsync();
@@ -181,6 +204,76 @@ public class NightShiftControllerTests : TestBase
         var result = await DeserializeResponseAsync<NightShiftFeedbackResponseDto>(response);
         result!.Ok.Should().BeFalse();
         result.Summary.Should().Contain("Noch kein Schuelerbeitrag");
+
+        var chat = await _client.PostAsJsonAsync(
+            $"{Routings.RestNightShiftChatRouting}/{start.SessionId}",
+            new { text = "Ich bin jetzt bei Ihnen.", kind = "say" });
+        chat.StatusCode.Should().Be(HttpStatusCode.OK);
+        var detailResponse = await _client.GetAsync(
+            $"{Routings.RestNightShiftSessionsRouting}/{start.SessionId}");
+        using var detail = JsonDocument.Parse(await detailResponse.Content.ReadAsStringAsync());
+        detail.RootElement.GetProperty("feedback").ValueKind.Should().Be(JsonValueKind.Null);
+    }
+
+    [Fact]
+    public async Task Finish_WithMalformedFeedback_ShouldNotPersist()
+    {
+        var institute = await _instituteRepo.CreateInstituteAsync();
+        var student = await _userRepo.CreateStudentAsync(institute.Guid);
+        AuthenticateAs(student);
+        var start = await StartAndDeserializeAsync("keller");
+        await _client.PostAsJsonAsync(
+            $"{Routings.RestNightShiftChatRouting}/{start.SessionId}",
+            new { text = "Ich hoere Ihnen zu.", kind = "say" });
+        var fakeLlmClient = _fixture.Factory.Services.GetRequiredService<FakeLlmClient>();
+        var callsBeforeFinish = fakeLlmClient.CallCount;
+        fakeLlmClient.FeedbackMode = "malformed";
+
+        try
+        {
+            var firstResponse = await _client.PostAsJsonAsync(
+                $"{Routings.RestNightShiftFinishRouting}/{start.SessionId}",
+                new { });
+            var secondResponse = await _client.PostAsJsonAsync(
+                $"{Routings.RestNightShiftFinishRouting}/{start.SessionId}",
+                new { });
+
+            var firstResult = await DeserializeResponseAsync<NightShiftFeedbackResponseDto>(firstResponse);
+            var secondResult = await DeserializeResponseAsync<NightShiftFeedbackResponseDto>(secondResponse);
+            firstResult!.Ok.Should().BeFalse();
+            secondResult!.Ok.Should().BeFalse();
+            fakeLlmClient.CallCount.Should().Be(callsBeforeFinish + 2);
+        }
+        finally
+        {
+            fakeLlmClient.FeedbackMode = "valid";
+        }
+    }
+
+    [Fact]
+    public void Prompts_ShouldContainNoLevelAndNoUnreplacedPlaceholders()
+    {
+        var promptBuilder = _fixture.Factory.Services.GetRequiredService<INightShiftPromptBuilder>();
+
+        foreach (var language in new[] { Language.German, Language.English })
+        {
+            var patientCase = CuratedCases.For(language)[0];
+            var prompts = new[]
+            {
+                promptBuilder.BuildPatientPrompt(patientCase, language),
+                promptBuilder.BuildFeedbackPrompt(patientCase, language),
+                promptBuilder.BuildGeneratorPrompt(language)
+            };
+
+            foreach (var prompt in prompts)
+            {
+                prompt.Should().NotContain("{{");
+                prompt.Should().NotContain("{{LEVEL}}");
+                prompt.Should().NotContainEquivalentOf("Schwierigkeitsgrad");
+                prompt.Should().NotContainEquivalentOf("level:");
+                prompt.Should().NotContainEquivalentOf("level (");
+            }
+        }
     }
 
     [Fact]
