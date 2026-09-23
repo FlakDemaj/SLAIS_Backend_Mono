@@ -5,6 +5,8 @@ namespace Domain.Simulations.NightShift;
 
 public class NightShiftSessionEntity : NightShiftSessionNavigationPropertyEntity
 {
+    public Guid? TemplateGuid { get; private set; }
+
     public Guid UserGuid { get; private set; }
 
     public Language Language { get; private set; }
@@ -76,7 +78,8 @@ public class NightShiftSessionEntity : NightShiftSessionNavigationPropertyEntity
         string recordResuscitation,
         string recordRelatives,
         string promptVersion,
-        string model)
+        string model,
+        Guid? templateGuid)
         : base(userGuid)
     {
         UserGuid = userGuid;
@@ -100,6 +103,7 @@ public class NightShiftSessionEntity : NightShiftSessionNavigationPropertyEntity
         RecordRelatives = recordRelatives;
         PromptVersion = promptVersion;
         Model = model;
+        TemplateGuid = templateGuid;
         StartedAt = DateTime.UtcNow;
         EndedAt = null;
         FinishedAt = null;
@@ -129,7 +133,8 @@ public class NightShiftSessionEntity : NightShiftSessionNavigationPropertyEntity
         string recordResuscitation,
         string recordRelatives,
         string promptVersion,
-        string model)
+        string model,
+        Guid? templateGuid = null)
     {
         CheckInputs(
             caseKey,
@@ -160,7 +165,8 @@ public class NightShiftSessionEntity : NightShiftSessionNavigationPropertyEntity
             recordResuscitation,
             recordRelatives,
             promptVersion,
-            model);
+            model,
+            templateGuid);
     }
 
     #endregion

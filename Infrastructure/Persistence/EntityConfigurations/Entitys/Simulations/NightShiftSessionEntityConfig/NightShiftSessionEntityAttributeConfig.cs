@@ -50,6 +50,10 @@ internal sealed class NightShiftSessionEntityAttributeConfig : BaseCreatedByEnti
         builder.Property(session => session.FinishedAt).HasColumnName("finished_at");
         builder.Property(session => session.Ended).HasColumnName("ended").IsRequired().HasDefaultValue(false);
 
+        builder
+            .Property(session => session.TemplateGuid)
+            .HasColumnName("fk_night_shift_template_guid");
+
         builder.AddForeignKeys();
         builder.AddIndexes();
     }
