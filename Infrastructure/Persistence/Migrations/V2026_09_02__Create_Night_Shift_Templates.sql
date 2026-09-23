@@ -15,7 +15,7 @@ create table if not exists simulation.night_shift_templates
     );
 
 create unique index if not exists idx_night_shift_templates_key
-    on simulation.night_shift_templates(key) where deleted_at is null;
+    on simulation.night_shift_templates(key) where state <> 3;
 
 create index if not exists idx_night_shift_templates_state_sort_order
     on simulation.night_shift_templates(state, sort_order);

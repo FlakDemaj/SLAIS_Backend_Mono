@@ -12,7 +12,7 @@ internal static class NightShiftTemplateEntityIndexExtension
         builder
             .HasIndex(template => template.Key)
             .IsUnique()
-            .HasFilter("deleted_at is null")
+            .HasFilter("state <> 3")
             .HasDatabaseName("idx_night_shift_templates_key");
 
         builder

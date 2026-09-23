@@ -119,7 +119,7 @@ public class StartNightShiftSessionCommandHandler : BaseHandler<StartNightShiftS
         Language language,
         CancellationToken cancellationToken)
     {
-        var caseKey = key?.Trim();
+        var caseKey = key?.Trim().ToLowerInvariant();
         if (string.IsNullOrEmpty(caseKey))
         {
             var templates = await _nightShiftTemplateRepository.GetActiveAsync();
@@ -129,9 +129,6 @@ public class StartNightShiftSessionCommandHandler : BaseHandler<StartNightShiftS
 
         if (caseKey.Equals("random", StringComparison.OrdinalIgnoreCase))
         {
-            var templates = await _nightShiftTemplateRepository.GetActiveAsync();
-            var fallbackTemplate = GetRandomTemplate(templates);
-            var fallback = FromTemplate(fallbackTemplate, language);
             try
             {
                 var raw = await _llmClient.ChatAsync(
@@ -144,14 +141,21 @@ public class StartNightShiftSessionCommandHandler : BaseHandler<StartNightShiftS
                     true,
                     "generate",
                     cancellationToken);
-                return new CaseResolution(
-                    CaseSanitizer.FromJson(raw, language, fallback.Case),
-                    null,
-                    false);
+                var sanitized = CaseSanitizer.FromJson(raw, language, CreateSanitizerFallback(language));
+                if (!sanitized.UsedFallback)
+                {
+                    return new CaseResolution(sanitized.Case, null, false);
+                }
+
+                var templates = await _nightShiftTemplateRepository.GetActiveAsync();
+                var fallbackTemplate = GetRandomTemplate(templates);
+                return FromTemplate(fallbackTemplate, language);
             }
             catch (SlaisException exception) when (exception.ErrorCode == (int)NightShiftErrorCodes.LlmUnavailable)
             {
-                return fallback;
+                var templates = await _nightShiftTemplateRepository.GetActiveAsync();
+                var fallbackTemplate = GetRandomTemplate(templates);
+                return FromTemplate(fallbackTemplate, language);
             }
         }
 
@@ -183,6 +187,36 @@ public class StartNightShiftSessionCommandHandler : BaseHandler<StartNightShiftS
             resolution.Case,
             template.Guid,
             resolution.IsLanguageFallback);
+    }
+
+    private static PatientCase CreateSanitizerFallback(Language language)
+    {
+        var unavailable = language == Language.English ? "n/a" : "k.A.";
+        return new PatientCase
+        {
+            Key = "random",
+            Name = "Patient",
+            Situation = string.Empty,
+            Emotion = "angespannt",
+            LearningGoal = language == Language.English
+                ? "Practise de-escalation and empathy."
+                : "Deeskalation und Empathie ueben.",
+            TensionStart = 6,
+            Opener = string.Empty,
+            Record = new PatientRecord
+            {
+                Born = unavailable,
+                Gender = unavailable,
+                Admission = unavailable,
+                Diagnoses = unavailable,
+                Allergies = unavailable,
+                Medication = unavailable,
+                CareLevel = unavailable,
+                Risks = unavailable,
+                Resuscitation = unavailable,
+                Relatives = unavailable
+            }
+        };
     }
 
     private static void EnsureAllowed(IAuthentication authentication)

@@ -49,7 +49,7 @@ public class NightShiftTemplateEntity : NightShiftTemplateNavigationPropertyEnti
 
     #region Behaviour
 
-    // BaseUpdatedByEntity provides no protected mutator for the updated audit fields.
+    // Audit fields of the base classes have no protected mutators; the maintainer decides whether to add them (see docs/night-shift/PROGRESS-phase1.md).
     public void UpdateHead(
         Guid? updatedByUserGuid,
         string key,
@@ -74,7 +74,7 @@ public class NightShiftTemplateEntity : NightShiftTemplateNavigationPropertyEnti
         Texts.Add(text);
     }
 
-    // BaseUpdatedByEntity provides no protected mutator for the updated audit fields.
+    // Audit fields of the base classes have no protected mutators; the maintainer decides whether to add them (see docs/night-shift/PROGRESS-phase1.md).
     public void Activate(Guid? updatedByUserGuid)
     {
         if (GetText(Language.German) == null || GetText(Language.English) == null)
@@ -85,13 +85,13 @@ public class NightShiftTemplateEntity : NightShiftTemplateNavigationPropertyEnti
         State = States.Active;
     }
 
-    // BaseUpdatedByEntity provides no protected mutator for the updated audit fields.
+    // Audit fields of the base classes have no protected mutators; the maintainer decides whether to add them (see docs/night-shift/PROGRESS-phase1.md).
     public void Archive(Guid? updatedByUserGuid)
     {
         State = States.Deactived;
     }
 
-    // BaseDeleteByEntity provides no protected mutator for the deleted audit fields.
+    // Audit fields of the base classes have no protected mutators; the maintainer decides whether to add them (see docs/night-shift/PROGRESS-phase1.md).
     public void MarkDeleted(Guid deletedByUserGuid)
     {
         State = States.Deleted;

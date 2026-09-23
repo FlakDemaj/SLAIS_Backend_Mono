@@ -159,6 +159,86 @@ public class NightShiftControllerTests : TestBase
     }
 
     [Fact]
+    public async Task Start_WithUpperCaseKey_ShouldResolveTemplate()
+    {
+        await _nightShiftTemplateRepo.SeedCuratedAsync();
+        var institute = await _instituteRepo.CreateInstituteAsync();
+        var student = await _userRepo.CreateStudentAsync(institute.Guid);
+        AuthenticateAs(student);
+
+        var response = await StartAsync("KELLER");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var result = await DeserializeResponseAsync<StartNightShiftSessionResponseDto>(response);
+        result!.Case.Key.Should().Be("keller");
+    }
+
+    [Fact]
+    public async Task Start_Random_WithoutTemplates_ShouldStillGenerate()
+    {
+        var institute = await _instituteRepo.CreateInstituteAsync();
+        var student = await _userRepo.CreateStudentAsync(institute.Guid);
+        AuthenticateAs(student);
+
+        var response = await StartAsync("random");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        var result = await DeserializeResponseAsync<StartNightShiftSessionResponseDto>(response);
+        result!.Case.Key.Should().Be("random");
+        var sessionsResponse = await _client.GetAsync(Routings.RestNightShiftSessionsRouting);
+        var sessions = await DeserializeResponseAsync<List<NightShiftSessionSummaryResponseDto>>(sessionsResponse);
+        sessions![0].TemplateId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Start_Random_WhenLlmFailsAndTemplatesExist_ShouldFallbackToTemplate()
+    {
+        await _nightShiftTemplateRepo.SeedCuratedAsync();
+        var institute = await _instituteRepo.CreateInstituteAsync();
+        var student = await _userRepo.CreateStudentAsync(institute.Guid);
+        AuthenticateAs(student);
+        var fakeLlmClient = _fixture.Factory.Services.GetRequiredService<FakeLlmClient>();
+        fakeLlmClient.ThrowUnavailable = true;
+
+        try
+        {
+            var response = await StartAsync("random");
+
+            response.StatusCode.Should().Be(HttpStatusCode.OK);
+            var sessionsResponse = await _client.GetAsync(Routings.RestNightShiftSessionsRouting);
+            var sessions = await DeserializeResponseAsync<List<NightShiftSessionSummaryResponseDto>>(sessionsResponse);
+            sessions![0].TemplateId.Should().NotBeNull();
+        }
+        finally
+        {
+            fakeLlmClient.ThrowUnavailable = false;
+        }
+    }
+
+    [Fact]
+    public async Task Start_Random_WhenLlmFailsAndNoTemplates_ShouldReturnNoActiveTemplates()
+    {
+        var institute = await _instituteRepo.CreateInstituteAsync();
+        var student = await _userRepo.CreateStudentAsync(institute.Guid);
+        AuthenticateAs(student);
+        var fakeLlmClient = _fixture.Factory.Services.GetRequiredService<FakeLlmClient>();
+        fakeLlmClient.ThrowUnavailable = true;
+
+        try
+        {
+            var response = await StartAsync("random");
+
+            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            var error = await DeserializeResponseAsync<ErrorResponseDto>(response);
+            error!.ErrorCode.Should().Be((int)NightShiftErrorCodes.NoActiveTemplates);
+        }
+        finally
+        {
+            fakeLlmClient.ThrowUnavailable = false;
+        }
+    }
+
+    [Fact]
     public async Task Start_WithArchivedKey_ShouldReturnInvalidCase()
     {
         var template = new NightShiftTemplateEntityBuilder()
