@@ -45,7 +45,9 @@ public class StartNightShiftSessionCommandHandler : BaseHandler<StartNightShiftS
     {
         EnsureAllowed(authentication!);
         var language = NightShiftLanguage.Parse(request.Language);
-        var resolution = await ResolveCaseAsync(request.CaseKey, language, cancellationToken);
+        var resolution = request.TemplateId.HasValue
+            ? await ResolveTemplateAsync(request.TemplateId.Value, language, authentication!)
+            : await ResolveCaseAsync(request.CaseKey, language, cancellationToken);
         var patientCase = resolution.Case;
         var session = NightShiftSessionEntity.Create(
             authentication!.UserGuid,
@@ -166,6 +168,23 @@ public class StartNightShiftSessionCommandHandler : BaseHandler<StartNightShiftS
         }
 
         return FromTemplate(activeTemplate, language);
+    }
+
+    private async Task<CaseResolution> ResolveTemplateAsync(
+        Guid templateGuid,
+        Language language,
+        IAuthentication authentication)
+    {
+        var template = await _nightShiftTemplateRepository.GetByGuidAsync(templateGuid)
+            ?? throw new SlaisException(NightShiftErrorCodes.TemplateNotFound);
+        if (template.State != States.Active
+            && authentication.UserRole != Roles.Admin
+            && authentication.UserRole != Roles.SuperAdmin)
+        {
+            throw new SlaisException(NightShiftErrorCodes.TemplateNotActive);
+        }
+
+        return FromTemplate(template, language);
     }
 
     private static NightShiftTemplateEntity GetRandomTemplate(List<NightShiftTemplateEntity> templates)
