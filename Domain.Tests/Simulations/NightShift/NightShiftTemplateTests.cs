@@ -67,6 +67,72 @@ public class NightShiftTemplateTests
         resolution.IsFallback.Should().BeTrue();
     }
 
+    [Fact]
+    public void Version_ShouldIncrementOnEveryChange()
+    {
+        var template = NightShiftTemplateEntity.CreateDraft(null, "keller", 8, 10);
+
+        template.Version.Should().Be(1);
+
+        template.Texts.Add(CreateText(template.Guid, Language.English, "Mr Keller"));
+        template.AddOrReplaceText(CreateText(template.Guid, Language.German, "Herr Keller"));
+
+        template.Version.Should().Be(2);
+
+        template.Activate(null);
+
+        template.Version.Should().Be(3);
+
+        template.Archive(null);
+
+        template.Version.Should().Be(4);
+
+        template.Reopen(null);
+
+        template.Version.Should().Be(5);
+
+        template.MarkDeleted(Guid.Empty);
+
+        template.Version.Should().Be(6);
+    }
+
+    [Fact]
+    public void Activate_FromDeleted_ShouldThrowTemplateStateInvalid()
+    {
+        var template = new NightShiftTemplateEntityBuilder()
+            .WithEnglishText()
+            .WithState(States.Deleted)
+            .Build();
+
+        var act = () => template.Activate(null);
+
+        act.ThrowsException(NightShiftErrorCodes.TemplateStateInvalid);
+    }
+
+    [Fact]
+    public void Reopen_FromArchived_ShouldSetPending()
+    {
+        var template = new NightShiftTemplateEntityBuilder()
+            .WithState(States.Deactived)
+            .Build();
+
+        template.Reopen(null);
+
+        template.State.Should().Be(States.Pending);
+    }
+
+    [Fact]
+    public void Archive_FromDeleted_ShouldThrowTemplateStateInvalid()
+    {
+        var template = new NightShiftTemplateEntityBuilder()
+            .WithState(States.Deleted)
+            .Build();
+
+        var act = () => template.Archive(null);
+
+        act.ThrowsException(NightShiftErrorCodes.TemplateStateInvalid);
+    }
+
     private static NightShiftTemplateTextEntity CreateText(
         Guid templateGuid,
         Language language,

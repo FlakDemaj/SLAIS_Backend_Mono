@@ -46,6 +46,13 @@ internal sealed class NightShiftTemplateEntityAttributeConfig : BaseDeletedByEnt
             .HasColumnName("sort_order")
             .IsRequired();
 
+        builder
+            .Property(template => template.Version)
+            .HasColumnName("version")
+            .IsRequired()
+            .HasDefaultValue(1)
+            .IsConcurrencyToken();
+
         builder.AddForeignKeys();
         builder.AddIndexes();
     }

@@ -16,6 +16,8 @@ public class NightShiftPromptBuilder : INightShiftPromptBuilder
 
     private readonly string _generator;
 
+    private readonly string _translate;
+
     public string Version { get; }
 
     public NightShiftPromptBuilder()
@@ -23,13 +25,16 @@ public class NightShiftPromptBuilder : INightShiftPromptBuilder
         _patient = Load("patient.md");
         _feedback = Load("feedback.md");
         _generator = Load("generator.md");
+        _translate = Load("translate.md");
         Version = _patient
             .Split('\n')[0]
             .Replace("version:", string.Empty, StringComparison.OrdinalIgnoreCase)
             .Trim();
     }
 
-    public string BuildPatientPrompt(PatientCase patientCase, Language language)
+    public string BuildPatientPrompt(
+        PatientCase patientCase,
+        Language language)
     {
         var fields = new Dictionary<string, string>
         {
@@ -53,7 +58,9 @@ public class NightShiftPromptBuilder : INightShiftPromptBuilder
         return Replace(_patient, fields);
     }
 
-    public string BuildFeedbackPrompt(PatientCase patientCase, Language language)
+    public string BuildFeedbackPrompt(
+        PatientCase patientCase,
+        Language language)
     {
         var fields = new Dictionary<string, string>
         {
@@ -75,7 +82,27 @@ public class NightShiftPromptBuilder : INightShiftPromptBuilder
         return Replace(_generator, fields);
     }
 
-    private static string Replace(string source, IDictionary<string, string> fields)
+    public string BuildTranslationPrompt(
+        Language source,
+        Language target)
+    {
+        var fields = new Dictionary<string, string>
+        {
+            ["QUELLE"] = TranslationLanguage(source),
+            ["ZIEL"] = TranslationLanguage(target)
+        };
+
+        return Replace(_translate, fields);
+    }
+
+    private static string TranslationLanguage(Language language)
+    {
+        return language == Language.English ? "Englisch" : "Deutsch";
+    }
+
+    private static string Replace(
+        string source,
+        IDictionary<string, string> fields)
     {
         var result = source;
 

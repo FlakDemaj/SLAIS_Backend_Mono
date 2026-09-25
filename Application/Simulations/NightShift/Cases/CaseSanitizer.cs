@@ -48,7 +48,7 @@ public static class CaseSanitizer
             {
                 Key = "random",
                 Name = StringValue(Get(element, "name"), "Patient", 60),
-                Situation = StringValue(Get(element, "situation"), string.Empty, 200),
+                Situation = StringValue(Get(element, "situation"), fallback.Situation, 200),
                 Emotion = StringValue(Get(element, "emotion"), "angespannt", 120),
                 LearningGoal = StringValue(Get(element, "lernziel"), language == Language.English ? "Practise de-escalation and empathy." : "Deeskalation und Empathie ueben.", 200),
                 TensionStart = NumberValue(Get(element, "anspannung_start"), 0, 10, 6),

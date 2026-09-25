@@ -10,5 +10,7 @@ public interface INightShiftTemplateRepository : IBaseRepository<NightShiftTempl
 
     Task<NightShiftTemplateEntity?> GetByGuidAsync(Guid templateGuid);
 
+    Task<NightShiftTemplateEntity?> GetByKeyAsync(string key);
+
     Task<List<NightShiftTemplateEntity>> GetAllAsync();
 }

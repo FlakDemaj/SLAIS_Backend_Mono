@@ -26,5 +26,26 @@ public enum NightShiftErrorCodes
     InvalidRequest = -520007,
 
     [Description("Keine aktiven Fallvorlagen vorhanden.")]
-    NoActiveTemplates = -520008
+    NoActiveTemplates = -520008,
+
+    [Description("Die Vorlage wurde inzwischen von jemand anderem geaendert.")]
+    TemplateModifiedByOtherUser = -520009,
+
+    [Description("Der Uebersetzungsvorschlag konnte nicht erzeugt werden.")]
+    TranslationUnavailable = -520010,
+
+    [Description("Der Vorlagenschluessel ist bereits vergeben.")]
+    TemplateKeyAlreadyExists = -520011,
+
+    [Description("Die Vorlage wurde nicht gefunden.")]
+    TemplateNotFound = -520012,
+
+    [Description("Die Sitzung basiert nicht auf einem Zufallsfall.")]
+    SessionIsNotRandomCase = -520013,
+
+    [Description("Die Vorlage ist nicht aktiv.")]
+    TemplateNotActive = -520014,
+
+    [Description("Der Zustandswechsel ist nicht erlaubt.")]
+    TemplateStateTransitionInvalid = -520015
 }

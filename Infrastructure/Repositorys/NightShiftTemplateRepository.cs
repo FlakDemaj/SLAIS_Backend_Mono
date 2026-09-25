@@ -47,6 +47,15 @@ public class NightShiftTemplateRepository : BaseRepository<NightShiftTemplateEnt
                 && template.State != States.Deleted);
     }
 
+    public Task<NightShiftTemplateEntity?> GetByKeyAsync(string key)
+    {
+        return _context
+            .GetTrackingSet<NightShiftTemplateEntity>()
+            .Include(template => template.Texts)
+            .FirstOrDefaultAsync(template => template.Key == key
+                && template.State != States.Deleted);
+    }
+
     public Task<List<NightShiftTemplateEntity>> GetAllAsync()
     {
         return _context

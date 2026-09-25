@@ -13,4 +13,6 @@ public interface INightShiftPromptBuilder
     string BuildFeedbackPrompt(PatientCase patientCase, Language language);
 
     string BuildGeneratorPrompt(Language language);
+
+    string BuildTranslationPrompt(Language source, Language target);
 }
