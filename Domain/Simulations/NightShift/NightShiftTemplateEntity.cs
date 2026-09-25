@@ -11,6 +11,8 @@ public class NightShiftTemplateEntity : NightShiftTemplateNavigationPropertyEnti
 
     public States State { get; private set; }
 
+    public int Version { get; private set; }
+
     public short TensionStart { get; private set; }
 
     public int SortOrder { get; private set; }
@@ -24,6 +26,7 @@ public class NightShiftTemplateEntity : NightShiftTemplateNavigationPropertyEnti
     {
         Key = key;
         State = States.Pending;
+        Version = 1;
         TensionStart = tensionStart;
         SortOrder = sortOrder;
     }
@@ -56,15 +59,19 @@ public class NightShiftTemplateEntity : NightShiftTemplateNavigationPropertyEnti
         short tensionStart,
         int sortOrder)
     {
+        EnsureEditable();
         CheckInputs(key, tensionStart, sortOrder);
 
         Key = key;
         TensionStart = tensionStart;
         SortOrder = sortOrder;
+        Version++;
     }
 
     public void AddOrReplaceText(NightShiftTemplateTextEntity text)
     {
+        EnsureEditable();
+
         var existingText = Texts.FirstOrDefault(x => x.Language == text.Language);
         if (existingText != null)
         {
@@ -72,29 +79,63 @@ public class NightShiftTemplateEntity : NightShiftTemplateNavigationPropertyEnti
         }
 
         Texts.Add(text);
+        Version++;
     }
 
     // Audit fields of the base classes have no protected mutators; the maintainer decides whether to add them (see docs/night-shift/PROGRESS-phase1.md).
     public void Activate(Guid? updatedByUserGuid)
     {
+        EnsureEditable();
+
+        if (State != States.Pending && State != States.Deactived)
+        {
+            throw new SlaisException(NightShiftErrorCodes.TemplateStateInvalid);
+        }
+
         if (GetText(Language.German) == null || GetText(Language.English) == null)
         {
             throw new SlaisException(NightShiftErrorCodes.TemplateActivationNeedsBothLanguages);
         }
 
         State = States.Active;
+        Version++;
     }
 
     // Audit fields of the base classes have no protected mutators; the maintainer decides whether to add them (see docs/night-shift/PROGRESS-phase1.md).
     public void Archive(Guid? updatedByUserGuid)
     {
+        EnsureEditable();
+
+        if (State != States.Active && State != States.Pending)
+        {
+            throw new SlaisException(NightShiftErrorCodes.TemplateStateInvalid);
+        }
+
         State = States.Deactived;
+        Version++;
+    }
+
+    // Audit fields of the base classes have no protected mutators; the maintainer decides whether to add them (see docs/night-shift/PROGRESS-phase1.md).
+    public void Reopen(Guid? updatedByUserGuid)
+    {
+        EnsureEditable();
+
+        if (State != States.Active && State != States.Deactived)
+        {
+            throw new SlaisException(NightShiftErrorCodes.TemplateStateInvalid);
+        }
+
+        State = States.Pending;
+        Version++;
     }
 
     // Audit fields of the base classes have no protected mutators; the maintainer decides whether to add them (see docs/night-shift/PROGRESS-phase1.md).
     public void MarkDeleted(Guid deletedByUserGuid)
     {
+        EnsureEditable();
+
         State = States.Deleted;
+        Version++;
     }
 
     public NightShiftTemplateTextEntity? GetText(Language language)
@@ -122,6 +163,14 @@ public class NightShiftTemplateEntity : NightShiftTemplateNavigationPropertyEnti
     #endregion
 
     #region Checks
+
+    private void EnsureEditable()
+    {
+        if (State == States.Deleted)
+        {
+            throw new SlaisException(NightShiftErrorCodes.TemplateStateInvalid);
+        }
+    }
 
     private static void CheckInputs(
         string key,

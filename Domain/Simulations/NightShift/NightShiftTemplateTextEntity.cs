@@ -145,6 +145,63 @@ public class NightShiftTemplateTextEntity : BaseUpdatedByEntity
 
     #endregion
 
+    #region Behaviour
+
+    // Audit fields of the base classes have no protected mutators; the maintainer decides whether to add them (see docs/night-shift/PROGRESS-phase1.md).
+    public void Update(
+        Guid? updatedByUserGuid,
+        string name,
+        string situation,
+        string emotion,
+        string learningGoal,
+        string opener,
+        string born,
+        string gender,
+        string admission,
+        string diagnoses,
+        string allergies,
+        string medication,
+        string careLevel,
+        string risks,
+        string resuscitation,
+        string relatives)
+    {
+        CheckInputs(
+            name,
+            situation,
+            emotion,
+            learningGoal,
+            opener,
+            born,
+            gender,
+            admission,
+            diagnoses,
+            allergies,
+            medication,
+            careLevel,
+            risks,
+            resuscitation,
+            relatives);
+
+        Name = name;
+        Situation = situation;
+        Emotion = emotion;
+        LearningGoal = learningGoal;
+        Opener = opener;
+        Born = born;
+        Gender = gender;
+        Admission = admission;
+        Diagnoses = diagnoses;
+        Allergies = allergies;
+        Medication = medication;
+        CareLevel = careLevel;
+        Risks = risks;
+        Resuscitation = resuscitation;
+        Relatives = relatives;
+    }
+
+    #endregion
+
     #region Checks
 
     private static void CheckInputs(
