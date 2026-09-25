@@ -20,3 +20,4 @@ Spec: `SPEC-phase2.md`. Branch `room701/night-shift-phase2` auf Phase 1. Status 
 - Audit-Setter in den Basisklassen (Flak).
 - Parallel-Tests fuer Update/Update und Create/Create.
 - Phase 3: Frontend `/admin/room701`.
+- 2026-09-25 17:05 · Stack-Check · Gateway kannte `/rest/NightShiftTemplate` nicht (fiel aufs alte Backend, 404) -> Route in `SLAIS_Deploy` ergaenzt. curl als Max.Admin: Liste (5 aktive, v1), Anlegen (pending), Aktivieren ohne Englisch -> -530009, Uebersetzung per echtem LLM (Mrs. Test, 70 / Test ward / none), Loeschen; Schueler -> 403. Fehlerkoerper des Backends ist PascalCase (`ErrorCode`/`ErrorMessage`), wie bei den anderen Controllern.
