@@ -11,7 +11,7 @@ Bindende Unterlagen: `SPEC-phase0.md` (Vertrag, Datenmodell, Regeln), `PROGRESS-
 | Domain | `Domain/Simulations/NightShift/` | `NightShiftSessionEntity` (Session mit Fall-Schnappschuss), `NightShiftMessageEntity`, `NightShiftFeedbackEntity`, `NightShiftTemplateEntity` + `NightShiftTemplateTextEntity` (Vorlagen, seit Phase 1), `NightShiftErrorCodes` (-5300xx); Enums `Language`, `NightShiftMessageRole` unter `Domain/Common/Enums/` |
 | Application | `Application/Simulations/NightShift/` | Use Cases `Commands/{StartNightShiftSession,SendNightShiftMessage,FinishNightShiftSession}`, `Querys/{GetNightShiftCases,GetNightShiftSessions,GetNightShiftSession}`, `Cases/PatientCaseFactory.cs` (Vorlage → Fall in der Session-Sprache), `NightShiftLanguage` (Sprachtexte), `NightShiftPromptTools` (Ende-Marker, Handlungsanweisung, Feedback-Parser), `NightShiftErrorCodes` (-5200xx). DTOs unter `Application/Common/DTOs/Simulations/NightShift/`, Mapper `Application/Common/Mappers/Simulations/NightShiftMapperProfile.cs`, Schnittstellen `INightShiftSessionRepository`, `INightShiftTemplateRepository`, `ILlmClient`, `INightShiftPromptBuilder` |
 | Infrastructure | `Infrastructure/InternalServices/NightShift/` | `OpenAiLlmClient` (typisierter HttpClient), `NightShiftPromptBuilder` + eingebettete Prompts `Prompts/{patient,feedback,generator}.md`; EF-Konfiguration `Persistence/EntityConfigurations/Entitys/Simulations/`, Migrationen `Persistence/Migrations/V2026_09_0{0..3}__*.sql`, `Repositorys/{NightShiftSessionRepository,NightShiftTemplateRepository}.cs`, Optionen `Configurations/NightShiftOptions.cs`, Registrierung in `DependencyInjection.cs` |
-| Presentation | `Presentation/Controllers/Simulations/NightShift/NightShiftController.cs` | Route `rest/NightShift`, Rollen Student/Teacher/Admin/SuperAdmin (kein Server) |
+| Presentation | `Presentation/Controllers/Simulations/NightShift/{NightShiftController,NightShiftTemplateController}.cs` | `rest/NightShift` für Schüler (Student/Teacher/Admin/SuperAdmin, kein Server), `rest/NightShiftTemplate` für Admin/SuperAdmin |
 | Tests | `Domain.Tests/Simulations/NightShift/`, `Integration.Tests/Simulations/NightShift/` | Entity-Regeln; HTTP-Vertrag gegen Testcontainers-Postgres mit `Integration.Tests/Common/FakeLlmClient.cs` |
 
 Tabellen im Schema `simulation`: `night_shift_sessions`, `night_shift_messages`, `night_shift_feedbacks`. Jede Session speichert eine Kopie ihres Falls (Spalten `case_*`, `record_*`); spätere Änderungen an Fällen berühren alte Sessions nicht.
@@ -43,11 +43,29 @@ Die Fälle liegen in `simulation.night_shift_templates` (Kopf: `key`, `state` na
 
 Die fünf Startfälle (keller, schmidt, yilmaz, entzug, vogel) kommen aus `V2026_09_03__Seed_Night_Shift_Templates.sql` mit festen GUIDs, beide Sprachen, aktiv; die Migration ist idempotent. Dieselben Daten liegen für Tests in `Tests.Domain.Shared/TestDataCreator/NightShiftTemplateTestData.cs`; wer eine Vorlage ändert, pflegt beide Stellen. Integration-Tests leeren die Tabellen vor jedem Lauf und seeden über `Integration.Tests/Common/Helpers/NightShiftTemplateTestRepository.cs`.
 
-Noch nicht enthalten: Admin-Endpunkte zum Anlegen und Bearbeiten, Übersetzungsvorschlag, „Zufallsfall als Vorlage" (Phase 2).
+Verwaltung, Übersetzung und Übernahme von Zufallsfällen: siehe „Verwaltung der Vorlagen (Phase 2)".
+
+## Verwaltung der Vorlagen (Phase 2)
+
+Admins und SuperAdmins pflegen Vorlagen über `rest/NightShiftTemplate` (Controller-Attribut und Handler prüfen die Rolle):
+
+| Verb | Route | Zweck |
+| --- | --- | --- |
+| GET | `` | alle Vorlagen außer gelöschten, beide Sprachen |
+| GET | `{templateGuid}` | eine Vorlage |
+| POST | `` | anlegen (`key`, `tensionStart`, `sortOrder`, optional `german`/`english`), Zustand `pending` |
+| PUT | `{templateGuid}` | bearbeiten; Body trägt `expectedVersion`, sonst `-520009`; Key nur im Zustand `pending` änderbar |
+| POST | `{templateGuid}/state` | `active`, `archived` oder `pending` (mit `expectedVersion`); aktiv nur mit beiden Sprachen |
+| DELETE | `{templateGuid}` | Soft Delete (Zustand `deleted`), laufende Sessions unberührt |
+| POST | `translate` | KI-Übersetzungsvorschlag (`sourceLanguage`, `targetLanguage`, `text` mit 15 Feldern); speichert nichts, Fehler `-520010` |
+| POST | `from-session/{sessionGuid}` | Zufallsfall einer Session als Entwurf übernehmen (`key`); nur Sessions ohne Vorlage |
+
+Jede Änderung erhöht `version`; Update und Zustandswechsel scheitern mit `-520009`, wenn jemand dazwischen gespeichert hat. `POST rest/NightShift/start` akzeptiert zusätzlich `templateId`; Admins dürfen damit Entwürfe testen, Schüler nur aktive Vorlagen (`-520014`). Antwortform der Vorlage: `{templateId, key, state: pending|active|archived, tensionStart, sortOrder, version, createdAt, updatedAt, texts: {de: {…}, en: {…}}}`.
+
+Der Übersetzungs-Prompt liegt unter `Infrastructure/InternalServices/NightShift/Prompts/translate.md`; die Antwort wird durch dieselben Regeln wie ein Vorlagentext geprüft. Offen für Flak: die Audit-Felder `updated_by`/`deleted_by` bleiben leer, solange die Basisklassen keine protected Setter haben.
 
 ## Bewusst nicht in Phase 0
 
-- Admin-Verwaltung der Vorlagen (Phase 2–3, siehe Konzept); Vorlagen in der Datenbank seit Phase 1.
-- Übersetzungsvorschlag per KI und „Zufallsfall als Vorlage übernehmen".
+- Frontend für die Vorlagenverwaltung (Phase 3, siehe Konzept); Backend seit Phase 2.
 - Prompts aus `system.prompts` (Tabelle existiert, Entity noch nicht).
 - Schwierigkeitsgrad: bewusst entfernt; die Startanspannung (`case_tension_start`) bleibt als verborgener Simulationswert.

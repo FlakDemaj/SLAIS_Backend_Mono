@@ -88,6 +88,11 @@ public class SuggestNightShiftTemplateTranslationCommandHandler :
     {
         using var document = JsonDocument.Parse(raw);
         var root = document.RootElement;
+        if (root.ValueKind != JsonValueKind.Object)
+        {
+            throw new JsonException();
+        }
+
         return new NightShiftTemplateTextDto
         {
             Name = Get(root, "name"),

@@ -50,7 +50,8 @@ internal sealed class NightShiftTemplateEntityAttributeConfig : BaseDeletedByEnt
             .Property(template => template.Version)
             .HasColumnName("version")
             .IsRequired()
-            .HasDefaultValue(1);
+            .HasDefaultValue(1)
+            .IsConcurrencyToken();
 
         builder.AddForeignKeys();
         builder.AddIndexes();
